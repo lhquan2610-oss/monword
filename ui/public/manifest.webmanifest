@@ -1,0 +1,20 @@
+{
+  "name": "MonWord — Chuẩn Hóa Văn Bản Pro",
+  "short_name": "MonWord",
+  "description": "Chuẩn hóa văn bản Nghị định 30/2020, Văn bản Đảng & xử lý tài liệu Office cục bộ trong hệ sinh thái Mon.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f8fafc",
+  "theme_color": "#2563EB",
+  "lang": "vi",
+  "icons": [
+    {
+      "src": "/monword-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

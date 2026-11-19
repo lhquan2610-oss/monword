@@ -1,0 +1,21 @@
+# Rust / Cargo
+/target/
+**/*.rs.bk
+
+# Frontend Node / Vite
+ui/node_modules/
+ui/dist/
+ui/tsconfig.tsbuildinfo
+
+# Portable WebView2 runtime & binaries
+/dist-portable/
+*.b64
+.chuanhoa_backup/
+*_chuanhoa.docx
+*_chuanhoa.docm
+*_chuanhoa.pdf
+
+# Vercel & IDE
+.vercel/
+.DS_Store
+Thumbs.db

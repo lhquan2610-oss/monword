@@ -1,0 +1,24 @@
+{
+  "version": "1.0.0",
+  "codename": "MonWord Multi-Platform LiveOTA",
+  "releaseDate": "19/11/2026",
+  "releaseRevision": "1.0.0-monword-liveota-20261119",
+  "downloadUrl": "https://github.com/lequan2512/monword/releases/latest",
+  "apkUrl": "https://monword.vercel.app",
+  "webUrl": "https://monword.vercel.app",
+  "releaseNotes": [
+    "Ra mắt bộ nhận diện chính thức MonWord v1.0.0 (Bé Mon Xanh dương #2563EB) đồng bộ hệ sinh thái MonPDF · MonWord · MonEx.",
+    "Hỗ trợ 3 giao diện chuyên biệt cho Windows Desktop (.exe), Web (monword.vercel.app) và Mobile (iOS/Android PWA).",
+    "Tích hợp Live OTA đa nền tảng: cập nhật giao diện và quy chuẩn NĐ30/2020 trực tiếp không cần cài lại tệp cài đặt.",
+    "Chuẩn hóa trực tiếp tệp .docx trên trình duyệt Web/Mobile (100% xử lý cục bộ, không tải lên máy chủ)."
+  ],
+  "history": [
+    {
+      "version": "1.0.0",
+      "date": "19/11/2026",
+      "notes": [
+        "Phát hành MonWord v1.0.0 đa nền tảng (Windows Desktop · Web App · Mobile PWA) kèm hệ thống cập nhật trực tiếp Live OTA."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+/target/
+/dist-portable/
+/src/
+/tests/
+/assets/
+Cargo.toml
+Cargo.lock
+build.rs
+build-portable.ps1
+ui/node_modules/
+ui/dist/
+ui/tsconfig.tsbuildinfo
+.git/
+*.b64
