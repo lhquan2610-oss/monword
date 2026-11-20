@@ -18,7 +18,7 @@ export const AuditModal: React.FC<Props> = ({ report, onClose }) => {
     .filter((i) => i.severity === 'warning')
     .reduce((acc, i) => acc + i.count, 0);
   const statusLabel =
-    errorCount > 0 ? 'Không đạt' : warningCount > 0 ? 'Cần kiểm tra' : 'Đạt';
+    errorCount > 0 ? 'Cần chỉnh sửa' : warningCount > 0 ? 'Cần kiểm tra thủ công' : 'Đạt';
   const statusColor =
     errorCount > 0
       ? 'text-rose-600 dark:text-rose-400'
@@ -70,7 +70,7 @@ export const AuditModal: React.FC<Props> = ({ report, onClose }) => {
               </div>
               <div className="px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
                 <div className="font-bold text-slate-800 dark:text-slate-100">{report.sectionCount}</div>
-                <div className="text-[11px] text-slate-500">Section</div>
+                <div className="text-[11px] text-slate-500">Phần trang</div>
               </div>
             </div>
           </div>
@@ -88,7 +88,7 @@ export const AuditModal: React.FC<Props> = ({ report, onClose }) => {
             )}
             {report.isProtected && (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-medium">
-                Đang bật Restrict Editing
+                Đang bật khóa chỉnh sửa
               </span>
             )}
           </div>

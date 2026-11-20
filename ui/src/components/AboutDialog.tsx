@@ -24,10 +24,10 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({
   if (!open) return null;
 
   const platformName = isNativeWin
-    ? 'Windows x64 (Rust + WebView2 · Hỗ trợ Live OTA)'
+    ? 'Bản Windows Desktop (.exe)'
     : edition === 'mobile'
-      ? 'Mobile Web / PWA (Hỗ trợ Live OTA)'
-      : 'Web Edition (monword.vercel.app)';
+      ? 'Bản Điện thoại (Mobile Web / PWA)'
+      : 'Bản Trình duyệt Web (monword.vercel.app)';
 
   return (
     <Dialog label="Giới thiệu MonWord" widthClass="max-w-md" onClose={onClose}>
@@ -70,8 +70,8 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({
             <span>Tiêu chuẩn bảo mật cục bộ 100%</span>
           </div>
           <div>• Xử lý hoàn toàn trên máy tính hoặc trình duyệt người dùng, không gửi file lên server.</div>
-          <div>• Bản Windows hỗ trợ lõi Rust OpenXML + Word COM Hybrid, sao lưu tự động `.chuanhoa_backup`.</div>
-          <div>• Bản Web/Mobile xử lý trực tiếp `.docx`/`.docm` tại trình duyệt &amp; cập nhật Live OTA.</div>
+          <div>• Bản Windows hỗ trợ đầy đủ tệp .docx, .docm, .doc và tự động sao lưu bản gốc trước khi xử lý.</div>
+          <div>• Bản Web và Điện thoại xử lý trực tiếp tệp .docx, .docm ngay trên trình duyệt.</div>
         </div>
 
         <div className="flex items-center gap-2">

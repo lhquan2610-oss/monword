@@ -1,10 +1,12 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
+  AlertCircle,
   ArrowLeft,
-  ArrowRight,
-  Clock,
+  BookOpen,
+  Building2,
+  CheckCircle2,
   Download,
-  FileCheck2,
+  ExternalLink,
   FileText,
   FolderOpen,
   FolderPlus,
@@ -12,16 +14,18 @@ import {
   Plus,
   RefreshCw,
   RotateCcw,
-  SearchCheck,
+  Save,
   Settings2,
   Shield,
   ShieldAlert,
-  SlidersHorizontal,
   Terminal,
   Trash2,
+  Type,
   Unlock,
+  Wrench,
   Zap,
 } from 'lucide-react';
+import { bridge } from '../bridge';
 import type {
   AddinItem,
   AuditReport,
@@ -30,6 +34,8 @@ import type {
   LockMode,
   NavTab,
   OperationLogEntry,
+  OrgSector,
+  OrganizationProfile,
   OrientationMode,
   PageNumPosition,
   PaperSize,
@@ -41,6 +47,17 @@ import type {
   SystemStatus,
   SystemTweaksRequest,
 } from '../types';
+import {
+  type DefaultDocInfo,
+  isAdminToolsEnabled,
+  loadDefaultDocInfo,
+  saveDefaultDocInfo,
+} from '../utils/platform';
+import {
+  deleteWebOrgProfile,
+  listWebOrgProfiles,
+  saveWebOrgProfile,
+} from '../utils/webHeaderBuilder';
 import {
   ADVANCED_NAV_GROUPS,
   getAdvancedTabMeta,
@@ -91,10 +108,12 @@ export interface ConfigPanelsProps {
   recentDocs?: RecentDocEntry[];
   onNavigate?: (tab: NavTab) => void;
   onPickFiles?: () => void;
-  onOpenOutput?: (path: string, revealInFolder?: boolean) => void;
+  onOpenOutput?: (path: string, revealInFolder?: boolean) => Promise<boolean> | void;
   onDownloadOutput?: (blobUrl: string, fileName: string) => void;
   onRestoreBackup?: (originalPath: string, backupPath: string) => void;
   onClearRecent?: () => void;
+  currentVersion?: string;
+  onOpenUpdate?: () => void;
   renderHeaderBuilder?: () => React.ReactNode;
   renderStandardizer?: () => React.ReactNode;
   renderTemplateEngine?: () => React.ReactNode;
@@ -103,26 +122,73 @@ export interface ConfigPanelsProps {
   renderLivePreview?: () => React.ReactNode;
 }
 
-const STATUS_META: Record<
-  RecentDocEntry['status'],
+type HistoryOp = 'standardize' | 'audit' | 'template';
+type HistoryResultStatus = 'completed' | 'passed' | 'needsFix' | 'failed';
+
+const OP_LABELS: Record<HistoryOp, string> = {
+  standardize: 'Chuẩn hóa',
+  audit: 'Kiểm tra',
+  template: 'Tạo từ mẫu',
+};
+
+const RESULT_STATUS_META: Record<
+  HistoryResultStatus,
   { label: string; className: string }
 > = {
-  standardized: {
-    label: 'Đã chuẩn hóa',
+  completed: {
+    label: 'Hoàn thành',
     className:
       'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300',
   },
-  checked: {
-    label: 'Đã kiểm tra',
+  passed: {
+    label: 'Đạt',
     className:
-      'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300',
+      'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300',
   },
-  selected: {
-    label: 'Đã chọn',
+  needsFix: {
+    label: 'Cần chỉnh sửa',
     className:
-      'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+      'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300',
+  },
+  failed: {
+    label: 'Thất bại',
+    className:
+      'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300',
   },
 };
+
+function inferHistoryOperation(entry: RecentDocEntry): HistoryOp {
+  if (entry.operation) return entry.operation;
+  if (entry.status === 'checked') return 'audit';
+  return 'standardize';
+}
+
+function inferHistoryResultStatus(entry: RecentDocEntry): HistoryResultStatus {
+  if (entry.resultStatus) return entry.resultStatus;
+  if (entry.status === 'standardized') return 'completed';
+  if (entry.status === 'checked') {
+    if (entry.summary?.includes('Đạt')) return 'passed';
+    if (entry.summary?.includes('Cần chỉnh sửa')) return 'needsFix';
+    return 'passed';
+  }
+  return 'needsFix';
+}
+
+function formatLocationDisplay(item: RecentDocEntry): string {
+  const isWeb = item.path.startsWith('web://') || (item.outputPath || '').startsWith('web://');
+  if (isWeb) {
+    if (item.outputPath && !item.outputPath.startsWith('web://')) {
+      return `Tệp tải về: ${item.outputPath}`;
+    }
+    return item.status === 'standardized' || item.operation === 'template'
+      ? 'Đã tải về trình duyệt'
+      : 'Đang mở trong phiên';
+  }
+  const target = item.outputPath || item.path;
+  const parts = target.split(/[/\\]/).filter(Boolean);
+  if (parts.length <= 2) return target;
+  return `...\\${parts.slice(-2).join('\\')}`;
+}
 
 function formatRecentTime(iso: string): string {
   try {
@@ -156,7 +222,7 @@ const AdvancedSubNavBar: React.FC<{
           className="mw-button mw-button-secondary text-xs"
         >
           <ArrowLeft className="size-3.5" aria-hidden="true" />
-          Quay lại Cài đặt và nâng cao
+          Quay lại Cài đặt
         </button>
         <span className="hidden sm:inline text-xs text-[var(--mw-muted)]">
           {meta.group.title} / <strong className="text-[var(--mw-ink)]">{meta.item.label}</strong>
@@ -187,6 +253,8 @@ const AdvancedSubNavBar: React.FC<{
 
 interface HistoryViewItem extends RecentDocEntry {
   inSession: boolean;
+  resolvedOp: HistoryOp;
+  resolvedStatus: HistoryResultStatus;
   sessionResult?: FileProcessResult;
   sessionAudit?: AuditReport;
 }
@@ -198,7 +266,7 @@ const HistoryPanel: React.FC<{
   recentDocs: RecentDocEntry[];
   onNavigate?: (tab: NavTab) => void;
   onPickFiles?: () => void;
-  onOpenOutput?: (path: string, revealInFolder?: boolean) => void;
+  onOpenOutput?: (path: string, revealInFolder?: boolean) => Promise<boolean> | void;
   onDownloadOutput?: (blobUrl: string, fileName: string) => void;
   onRestoreBackup?: (originalPath: string, backupPath: string) => void;
   onClearRecent?: () => void;
@@ -214,44 +282,78 @@ const HistoryPanel: React.FC<{
   onRestoreBackup,
   onClearRecent,
 }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [opFilter, setOpFilter] = useState<'all' | HistoryOp>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | HistoryResultStatus>('all');
+  const [missingNotice, setMissingNotice] = useState<string | null>(null);
+
   const items = useMemo<HistoryViewItem[]>(() => {
     const map = new Map<string, HistoryViewItem>();
 
     for (const entry of recentDocs) {
-      map.set(entry.path.toLowerCase(), {
+      const resolvedOp = inferHistoryOperation(entry);
+      const resolvedStatus = inferHistoryResultStatus(entry);
+      const mapKey = `${entry.path.toLowerCase()}::${resolvedOp}`;
+      map.set(mapKey, {
         ...entry,
         inSession: false,
+        resolvedOp,
+        resolvedStatus,
       });
     }
 
     for (const file of files) {
       const key = file.path.toLowerCase();
-      const prev = map.get(key);
       const res = results[file.path];
-      const audit = res?.auditAfter || audits[file.path];
-      const status: RecentDocEntry['status'] = res?.success
-        ? 'standardized'
-        : audit
-          ? 'checked'
-          : prev?.status || 'selected';
+      const audit = audits[file.path];
 
-      map.set(key, {
-        path: file.path,
-        name: file.name,
-        ext: file.ext,
-        updatedAt: prev?.updatedAt || new Date().toISOString(),
-        status,
-        outputPath: res?.success ? res.outputPath : prev?.outputPath,
-        backupPath: res?.backupPath ?? prev?.backupPath ?? null,
-        summary: res?.success
-          ? res.statsSummary
-          : audit
-            ? `Điểm thể thức: ${audit.score}/100`
-            : prev?.summary,
-        inSession: true,
-        sessionResult: res,
-        sessionAudit: audit,
-      });
+      if (res) {
+        const stdKey = `${key}::standardize`;
+        const prev = map.get(stdKey);
+        map.delete(`${key}::selected`);
+        map.set(stdKey, {
+          path: file.path,
+          name: file.name,
+          ext: file.ext,
+          updatedAt: prev?.updatedAt || new Date().toISOString(),
+          status: res.success ? 'standardized' : 'selected',
+          operation: 'standardize',
+          resultStatus: res.success ? 'completed' : 'failed',
+          resolvedOp: 'standardize',
+          resolvedStatus: res.success ? 'completed' : 'failed',
+          outputPath: res.success ? res.outputPath : prev?.outputPath,
+          backupPath: res.backupPath ?? prev?.backupPath ?? null,
+          summary: res.success ? res.statsSummary : prev?.summary,
+          inSession: true,
+          sessionResult: res,
+        });
+      }
+
+      if (audit) {
+        const audKey = `${key}::audit`;
+        const prev = map.get(audKey);
+        map.delete(`${key}::selected`);
+        const rs: HistoryResultStatus = audit.issues.length === 0 ? 'passed' : 'needsFix';
+        map.set(audKey, {
+          path: file.path,
+          name: file.name,
+          ext: file.ext,
+          updatedAt: prev?.updatedAt || new Date().toISOString(),
+          status: 'checked',
+          operation: 'audit',
+          resultStatus: prev?.resultStatus || rs,
+          resolvedOp: 'audit',
+          resolvedStatus: prev?.resultStatus || rs,
+          outputPath: prev?.outputPath,
+          backupPath: null,
+          summary:
+            audit.issues.length === 0
+              ? 'Kết quả kiểm tra: Đạt'
+              : `Cần chỉnh sửa (${audit.issues.length} mục)`,
+          inSession: true,
+          sessionAudit: audit,
+        });
+      }
     }
 
     return Array.from(map.values()).sort((a, b) =>
@@ -259,8 +361,29 @@ const HistoryPanel: React.FC<{
     );
   }, [audits, files, recentDocs, results]);
 
+  const filteredItems = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return items.filter((item) => {
+      if (opFilter !== 'all' && item.resolvedOp !== opFilter) return false;
+      if (statusFilter !== 'all' && item.resolvedStatus !== statusFilter) return false;
+      if (q && !item.name.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [items, opFilter, statusFilter, searchQuery]);
+
+  const handleOpenPathSafe = async (targetPath: string, reveal: boolean, docName: string) => {
+    setMissingNotice(null);
+    if (!onOpenOutput) return;
+    const ok = await onOpenOutput(targetPath, reveal);
+    if (ok === false) {
+      setMissingNotice(
+        `Không tìm thấy tệp "${docName}" tại vị trí đã lưu. Tệp có thể đã bị di chuyển hoặc xóa.`,
+      );
+    }
+  };
+
   return (
-    <div className="mx-auto max-w-4xl space-y-5">
+    <div className="mx-auto max-w-5xl space-y-4">
       <header className="mw-panel flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5">
         <div className="flex items-start gap-3 min-w-0">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[var(--mw-tint)] text-[var(--mw-accent)]">
@@ -271,7 +394,7 @@ const HistoryPanel: React.FC<{
               Lịch sử &amp; Tài liệu gần đây
             </h2>
             <p className="mt-0.5 text-xs text-[var(--mw-muted)]">
-              Xem lại các tài liệu bạn đã mở, kiểm tra hoặc chuẩn hóa để tiếp tục xử lý hoặc khôi phục bản gốc.
+              Theo dõi các tài liệu đã chuẩn hóa, kiểm tra hoặc tạo từ mẫu để mở lại hoặc khôi phục nhanh.
             </p>
           </div>
         </div>
@@ -289,7 +412,10 @@ const HistoryPanel: React.FC<{
           {items.length > 0 && onClearRecent && (
             <button
               type="button"
-              onClick={onClearRecent}
+              onClick={() => {
+                setMissingNotice(null);
+                onClearRecent();
+              }}
               className="mw-button mw-button-secondary"
             >
               <Trash2 className="size-3.5" aria-hidden="true" /> Xóa lịch sử
@@ -297,6 +423,49 @@ const HistoryPanel: React.FC<{
           )}
         </div>
       </header>
+
+      {items.length > 0 && (
+        <div className="mw-panel p-3 flex flex-wrap items-center gap-2.5 text-xs">
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Tìm theo tên tài liệu..."
+            aria-label="Tìm theo tên tài liệu"
+            className="flex-1 min-w-[200px] rounded-lg border border-[var(--mw-border)] px-3 py-1.5 text-xs"
+          />
+          <select
+            value={opFilter}
+            onChange={(e) => setOpFilter(e.target.value as 'all' | HistoryOp)}
+            aria-label="Lọc theo thao tác"
+            className="rounded-lg border border-[var(--mw-border)] px-2.5 py-1.5 text-xs"
+          >
+            <option value="all">Tất cả thao tác</option>
+            <option value="standardize">Chuẩn hóa</option>
+            <option value="audit">Kiểm tra</option>
+            <option value="template">Tạo từ mẫu</option>
+          </select>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as 'all' | HistoryResultStatus)}
+            aria-label="Lọc theo trạng thái"
+            className="rounded-lg border border-[var(--mw-border)] px-2.5 py-1.5 text-xs"
+          >
+            <option value="all">Tất cả trạng thái</option>
+            <option value="completed">Hoàn thành</option>
+            <option value="passed">Đạt</option>
+            <option value="needsFix">Cần chỉnh sửa</option>
+            <option value="failed">Thất bại</option>
+          </select>
+        </div>
+      )}
+
+      {missingNotice && (
+        <div role="alert" className="mw-toast mw-toast-err text-xs">
+          <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
+          <span>{missingNotice}</span>
+        </div>
+      )}
 
       {items.length === 0 ? (
         <div className="mw-empty flex flex-col items-center justify-center gap-3 px-6 py-12 text-center">
@@ -306,7 +475,7 @@ const HistoryPanel: React.FC<{
               Chưa có tài liệu nào gần đây
             </h3>
             <p className="text-xs text-[var(--mw-muted)]">
-              Hãy chọn một tài liệu Word từ máy tính để bắt đầu chuẩn hóa hoặc kiểm tra thể thức.
+              Lịch sử sẽ tự động ghi nhận khi bạn chuẩn hóa, kiểm tra hoặc tạo văn bản từ mẫu.
             </p>
           </div>
           {onPickFiles && (
@@ -319,200 +488,1049 @@ const HistoryPanel: React.FC<{
             </button>
           )}
         </div>
+      ) : filteredItems.length === 0 ? (
+        <div className="mw-panel p-8 text-center text-xs text-[var(--mw-muted)]">
+          Không tìm thấy tài liệu nào khớp với từ khóa hoặc bộ lọc đang chọn.
+        </div>
       ) : (
-        <div className="mw-panel divide-y divide-[var(--mw-border)]">
-          {items.map((item) => {
-            const badge = STATUS_META[item.status];
-            const isWebPath = item.path.startsWith('web://');
-            const targetOpenPath = item.outputPath || (!isWebPath ? item.path : undefined);
-            const timeLabel = formatRecentTime(item.updatedAt);
+        <div className="mw-panel overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="border-b border-[var(--mw-border)] bg-[var(--mw-canvas)] text-[11px] font-bold text-[var(--mw-muted)]">
+                <th className="py-3 px-4">Tên tài liệu</th>
+                <th className="py-3 px-3 whitespace-nowrap">Thời gian</th>
+                <th className="py-3 px-3 whitespace-nowrap">Thao tác</th>
+                <th className="py-3 px-3 whitespace-nowrap">Trạng thái</th>
+                <th className="py-3 px-4">Vị trí lưu</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--mw-border)]">
+              {filteredItems.map((item) => {
+                const badge = RESULT_STATUS_META[item.resolvedStatus];
+                const isWebPath =
+                  item.path.startsWith('web://') || (item.outputPath || '').startsWith('web://');
+                const targetOpenPath = item.outputPath || (!isWebPath ? item.path : undefined);
+                const timeLabel = formatRecentTime(item.updatedAt);
 
-            return (
-              <div
-                key={item.path}
-                className="flex flex-wrap items-center justify-between gap-3 p-4"
-              >
-                <div className="flex items-start gap-3 min-w-0 flex-1 basis-64">
-                  <FileText className="size-5 shrink-0 text-[var(--mw-accent)] mt-0.5" aria-hidden="true" />
-                  <div className="min-w-0 space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="truncate text-sm font-bold text-[var(--mw-ink)]">
-                        {item.name}
-                      </span>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${badge.className}`}
-                      >
+                return (
+                  <tr key={`${item.path}::${item.resolvedOp}`} className="hover:bg-[var(--mw-canvas)]/60">
+                    <td className="py-3 px-4 font-semibold text-[var(--mw-ink)] max-w-[260px]">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileText className="size-4 shrink-0 text-[var(--mw-accent)]" aria-hidden="true" />
+                        <span className="truncate">{item.name}</span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-3 text-[11px] text-[var(--mw-muted)] whitespace-nowrap">
+                      {timeLabel || 'Vừa xong'}
+                    </td>
+                    <td className="py-3 px-3 whitespace-nowrap font-medium text-[var(--mw-ink)]">
+                      {OP_LABELS[item.resolvedOp]}
+                    </td>
+                    <td className="py-3 px-3 whitespace-nowrap">
+                      <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${badge.className}`}>
                         {badge.label}
                       </span>
-                    </div>
-                    {item.summary && (
-                      <p className="text-xs text-[var(--mw-muted)]">{item.summary}</p>
-                    )}
-                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-[var(--mw-muted)]">
-                      {!isWebPath && (
-                        <span title={item.path} className="truncate max-w-md">
-                          {item.path}
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span
+                          className="text-[11px] text-[var(--mw-muted)] truncate max-w-[180px]"
+                          title={!isWebPath ? targetOpenPath : undefined}
+                        >
+                          {formatLocationDisplay(item)}
                         </span>
-                      )}
-                      {timeLabel && (
-                        <span className="inline-flex items-center gap-1">
-                          <Clock className="size-3" aria-hidden="true" />
-                          {timeLabel}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  {item.inSession && onNavigate && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => onNavigate('standardizer')}
-                        className="mw-button mw-button-primary"
-                      >
-                        <FileCheck2 className="size-3.5" aria-hidden="true" />
-                        Chuẩn hóa
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onNavigate('complianceAudit')}
-                        className="mw-button mw-button-secondary"
-                      >
-                        <SearchCheck className="size-3.5" aria-hidden="true" />
-                        Kiểm tra
-                      </button>
-                    </>
-                  )}
-
-                  {item.sessionResult?.blobUrl && onDownloadOutput && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onDownloadOutput(
-                          item.sessionResult!.blobUrl!,
-                          item.sessionResult!.outputName || item.sessionResult!.outputPath,
-                        )
-                      }
-                      className="mw-button mw-button-secondary"
-                    >
-                      <Download className="size-3.5" aria-hidden="true" />
-                      Tải tệp kết quả
-                    </button>
-                  )}
-
-                  {!isWebPath && targetOpenPath && onOpenOutput && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => onOpenOutput(targetOpenPath, false)}
-                        className="mw-button mw-button-secondary"
-                      >
-                        {item.outputPath ? 'Mở tệp kết quả' : 'Mở tệp'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onOpenOutput(targetOpenPath, true)}
-                        className="mw-button mw-button-secondary"
-                      >
-                        <FolderOpen className="size-3.5" aria-hidden="true" />
-                        Mở thư mục
-                      </button>
-                    </>
-                  )}
-
-                  {!isWebPath && item.backupPath && onRestoreBackup && (
-                    <button
-                      type="button"
-                      onClick={() => onRestoreBackup(item.path, item.backupPath!)}
-                      className="mw-button mw-button-secondary"
-                    >
-                      <RotateCcw className="size-3.5" aria-hidden="true" />
-                      Khôi phục bản gốc
-                    </button>
-                  )}
-
-                  {!item.inSession && isWebPath && onPickFiles && (
-                    <button
-                      type="button"
-                      onClick={onPickFiles}
-                      className="mw-button mw-button-secondary"
-                    >
-                      Chọn lại tệp để xử lý
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {item.sessionResult?.blobUrl && onDownloadOutput && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onDownloadOutput(
+                                  item.sessionResult!.blobUrl!,
+                                  item.sessionResult!.outputName || item.sessionResult!.outputPath,
+                                )
+                              }
+                              className="mw-button mw-button-secondary text-[11px] px-2.5 py-1"
+                            >
+                              <Download className="size-3" aria-hidden="true" />
+                              Tải tệp
+                            </button>
+                          )}
+                          {!isWebPath && targetOpenPath && onOpenOutput && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => void handleOpenPathSafe(targetOpenPath, false, item.name)}
+                                className="mw-button mw-button-secondary text-[11px] px-2.5 py-1"
+                              >
+                                <ExternalLink className="size-3" aria-hidden="true" />
+                                Mở tệp
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void handleOpenPathSafe(targetOpenPath, true, item.name)}
+                                className="mw-button mw-button-secondary text-[11px] px-2.5 py-1"
+                              >
+                                <FolderOpen className="size-3" aria-hidden="true" />
+                                Mở thư mục
+                              </button>
+                            </>
+                          )}
+                          {!isWebPath && item.backupPath && onRestoreBackup && (
+                            <button
+                              type="button"
+                              onClick={() => onRestoreBackup(item.path, item.backupPath!)}
+                              className="mw-button mw-button-secondary text-[11px] px-2.5 py-1"
+                            >
+                              <RotateCcw className="size-3" aria-hidden="true" />
+                              Khôi phục
+                            </button>
+                          )}
+                          {item.inSession && onNavigate && !item.sessionResult?.blobUrl && isWebPath && (
+                            <button
+                              type="button"
+                              onClick={() => onNavigate('standardizer')}
+                              className="mw-button mw-button-secondary text-[11px] px-2.5 py-1"
+                            >
+                              Mở lại
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
   );
 };
 
-const AdvancedSettingsHub: React.FC<{
+type SettingsGroupId = 'org' | 'format' | 'page' | 'system';
+
+function getInitialSettingsGroup(): SettingsGroupId {
+  if (typeof window === 'undefined') return 'org';
+  try {
+    const param = new URLSearchParams(window.location.search).get('settingsTab');
+    if (param === 'org' || param === 'format' || param === 'page' || param === 'system') {
+      return param;
+    }
+  } catch {
+    // ignore
+  }
+  return 'org';
+}
+
+function makeEmptyOrgProfile(): OrganizationProfile {
+  return {
+    id: `org-${Date.now()}`,
+    profileName: '',
+    sector: 'stateAgency',
+    governingOrg: '',
+    issuingOrg: '',
+    affiliatedUnit: '',
+    departmentOrBranch: '',
+    agencyAbbreviation: '',
+    defaultLocation: '',
+    useNd30LayoutForEnterprise: true,
+    showGoverningOrgDefault: true,
+    showAffiliatedUnitDefault: false,
+    showDepartmentDefault: false,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+const SettingsWorkspace: React.FC<{
+  config: ProcessConfig;
+  applyPreset?: (presetId: PresetId) => void;
+  updateFormat: ConfigPanelsProps['updateFormat'];
+  updateCleaner: ConfigPanelsProps['updateCleaner'];
+  updatePageToc: ConfigPanelsProps['updatePageToc'];
+  isNativeWin: boolean;
+  systemStatus: SystemStatus | null;
+  loadingSystem: boolean;
+  refreshSystemAndAddins: (targetApp?: 'word' | 'excel') => void;
+  onOpenDesktopDownload: () => void;
+  files: FileQueueItem[];
+  results: Record<string, FileProcessResult>;
+  recentDocs: RecentDocEntry[];
+  onOpenOutput?: (path: string, revealInFolder?: boolean) => void;
+  onRestoreBackup?: (originalPath: string, backupPath: string) => void;
+  currentVersion: string;
+  onOpenUpdate?: () => void;
   onNavigate?: (tab: NavTab) => void;
-}> = ({ onNavigate }) => {
+}> = ({
+  config,
+  applyPreset,
+  updateFormat,
+  updateCleaner,
+  updatePageToc,
+  isNativeWin,
+  systemStatus,
+  loadingSystem,
+  refreshSystemAndAddins,
+  onOpenDesktopDownload,
+  files,
+  results,
+  recentDocs,
+  onOpenOutput,
+  onRestoreBackup,
+  currentVersion,
+  onOpenUpdate,
+  onNavigate,
+}) => {
+  const [group, setGroup] = useState<SettingsGroupId>(() => getInitialSettingsGroup());
+  const [profiles, setProfiles] = useState<OrganizationProfile[]>([]);
+  const [draft, setDraft] = useState<OrganizationProfile>(() => makeEmptyOrgProfile());
+  const [defaultDocInfo, setDefaultDocInfo] = useState<DefaultDocInfo>(() => loadDefaultDocInfo());
+  const [savedMsg, setSavedMsg] = useState<string>('');
+  const [formatResetMsg, setFormatResetMsg] = useState<string>('');
+  const [savingOrg, setSavingOrg] = useState(false);
+  const adminEnabled = isAdminToolsEnabled();
+
+  const handleRestoreDefaultFormat = () => {
+    applyPreset?.('nd30');
+    setFormatResetMsg('Đã khôi phục thông số định dạng và trang giấy về mặc định chuẩn.');
+  };
+
+  useEffect(() => {
+    let alive = true;
+    const loadOrgs = async () => {
+      try {
+        const list = isNativeWin
+          ? await bridge.invoke<OrganizationProfile[]>('list_org_profiles')
+          : listWebOrgProfiles();
+        if (!alive) return;
+        const safeList = Array.isArray(list) ? list : [];
+        setProfiles(safeList);
+        const preferred = safeList.find((p) => p.id === defaultDocInfo.defaultOrgProfileId);
+        if (preferred) {
+          setDraft({ ...preferred });
+        } else if (safeList.length > 0) {
+          setDraft({ ...safeList[0] });
+        }
+      } catch {
+        // ignore load error
+      }
+    };
+    void loadOrgs();
+    return () => {
+      alive = false;
+    };
+  }, [isNativeWin]);
+
+  const backupEntries = useMemo(() => {
+    const map = new Map<
+      string,
+      { path: string; name: string; backupPath: string; updatedAt?: string }
+    >();
+    for (const r of recentDocs) {
+      if (r.backupPath && !r.path.startsWith('web://')) {
+        map.set(r.path.toLowerCase(), {
+          path: r.path,
+          name: r.name,
+          backupPath: r.backupPath,
+          updatedAt: r.updatedAt,
+        });
+      }
+    }
+    for (const f of files) {
+      const res = results[f.path];
+      if (res?.backupPath && !f.path.startsWith('web://')) {
+        map.set(f.path.toLowerCase(), {
+          path: f.path,
+          name: f.name,
+          backupPath: res.backupPath,
+        });
+      }
+    }
+    return Array.from(map.values());
+  }, [files, recentDocs, results]);
+
+  const handleSaveOrg = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!draft.issuingOrg.trim()) {
+      setSavedMsg('Vui lòng nhập Tên cơ quan.');
+      return;
+    }
+    setSavingOrg(true);
+    setSavedMsg('');
+    try {
+      const toSave: OrganizationProfile = {
+        ...draft,
+        profileName: draft.profileName.trim() || draft.issuingOrg.trim(),
+        updatedAt: new Date().toISOString(),
+      };
+      const updated = isNativeWin
+        ? await bridge.invoke<OrganizationProfile[]>('save_org_profile', toSave)
+        : saveWebOrgProfile(toSave);
+      const safeUpdated = Array.isArray(updated) ? updated : [toSave];
+      setProfiles(safeUpdated);
+      setDraft(toSave);
+      const nextDocInfo: DefaultDocInfo = {
+        ...defaultDocInfo,
+        defaultOrgProfileId: toSave.id,
+      };
+      setDefaultDocInfo(nextDocInfo);
+      saveDefaultDocInfo(nextDocInfo);
+      setSavedMsg('Đã lưu thông tin hồ sơ cơ quan và mặc định tạo văn bản.');
+    } catch (err) {
+      setSavedMsg(`Không thể lưu hồ sơ: ${(err as Error).message}`);
+    } finally {
+      setSavingOrg(false);
+    }
+  };
+
+  const handleDeleteOrg = async (id: string) => {
+    try {
+      const updated = isNativeWin
+        ? await bridge.invoke<OrganizationProfile[]>('delete_org_profile', { id })
+        : deleteWebOrgProfile(id);
+      const safeUpdated = Array.isArray(updated) ? updated : [];
+      setProfiles(safeUpdated);
+      setDraft(safeUpdated[0] ? { ...safeUpdated[0] } : makeEmptyOrgProfile());
+      setSavedMsg('Đã xóa hồ sơ đã chọn.');
+    } catch {
+      // ignore
+    }
+  };
+
+  const SETTINGS_GROUPS = [
+    { id: 'org' as const, label: 'Hồ sơ cơ quan', icon: Building2 },
+    { id: 'format' as const, label: 'Định dạng mặc định', icon: Type },
+    { id: 'page' as const, label: 'Trang giấy và Header/Footer', icon: BookOpen },
+    { id: 'system' as const, label: 'Hệ thống và sao lưu', icon: Wrench },
+  ];
+
   return (
     <div className="mx-auto max-w-4xl space-y-5">
-      <header className="mw-panel p-4 sm:p-5">
+      <header className="mw-panel p-4 sm:p-5 space-y-4">
         <div className="flex items-start gap-3">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[var(--mw-tint)] text-[var(--mw-accent)]">
-            <SlidersHorizontal className="size-5" aria-hidden="true" />
+            <Settings2 className="size-5" aria-hidden="true" />
           </div>
           <div className="min-w-0">
-            <h2 className="text-base font-bold text-[var(--mw-ink)]">
-              Cài đặt và nâng cao
-            </h2>
-            <p className="mt-1 text-xs leading-5 text-[var(--mw-muted)]">
-              Các công cụ cấu hình chi tiết, xử lý hàng loạt và thiết lập hệ thống dành cho người dùng có nhu cầu riêng hoặc quản trị viên.
+            <h2 className="text-base font-bold text-[var(--mw-ink)]">Cài đặt</h2>
+            <p className="mt-0.5 text-xs text-[var(--mw-muted)]">
+              Thiết lập thông tin cơ quan, quy chuẩn định dạng mặc định và sao lưu tài liệu.
             </p>
           </div>
         </div>
+
+        <div role="tablist" aria-label="Nhóm cài đặt" className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+          {SETTINGS_GROUPS.map(({ id, label, icon: Icon }) => {
+            const active = group === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setGroup(id)}
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs font-semibold transition-colors ${
+                  active
+                    ? 'border-[var(--mw-focus)] bg-[var(--mw-tint)] text-[var(--mw-ink)]'
+                    : 'border-[var(--mw-border)] bg-[var(--mw-surface)] text-[var(--mw-muted)] hover:bg-[var(--mw-tint)]/50'
+                }`}
+              >
+                <Icon className="size-4 shrink-0" aria-hidden="true" />
+                <span className="truncate">{label}</span>
+              </button>
+            );
+          })}
+        </div>
       </header>
 
-      <div className="space-y-4">
-        {ADVANCED_NAV_GROUPS.map((group) => (
-          <section key={group.id} className="mw-panel p-4 sm:p-5 space-y-3">
+      {/* NHÓM A: HỒ SƠ CƠ QUAN */}
+      {group === 'org' && (
+        <form onSubmit={handleSaveOrg} className="mw-panel p-4 sm:p-5 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h3 className="text-sm font-bold text-[var(--mw-ink)]">{group.title}</h3>
-              <p className="mt-0.5 text-xs text-[var(--mw-muted)]">{group.subtitle}</p>
+              <h3 className="text-sm font-bold text-[var(--mw-ink)]">A. Hồ sơ cơ quan</h3>
+              <p className="text-xs text-[var(--mw-muted)]">
+                Thông tin này tự động điền vào phần đầu và chữ ký khi tạo văn bản mới.
+              </p>
             </div>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              {group.items.map(({ id, label, description, icon: Icon }) => (
-                <div
-                  key={id}
-                  className="flex flex-col justify-between gap-3 rounded-lg border border-[var(--mw-border)] bg-[var(--mw-canvas)] p-3.5"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-[var(--mw-tint)] text-[var(--mw-accent)]">
-                      <Icon className="size-4" aria-hidden="true" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-xs font-bold text-[var(--mw-ink)]">{label}</div>
-                      <p className="mt-0.5 text-xs leading-4 text-[var(--mw-muted)]">
-                        {description}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => {
+                setDraft(makeEmptyOrgProfile());
+                setSavedMsg('');
+              }}
+              className="mw-button mw-button-secondary text-xs"
+            >
+              <Plus className="size-3.5" aria-hidden="true" />
+              Thêm hồ sơ mới
+            </button>
+          </div>
+
+          {profiles.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              {profiles.map((p) => {
+                const selected = draft.id === p.id;
+                return (
+                  <div
+                    key={p.id}
+                    className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs ${
+                      selected
+                        ? 'border-[var(--mw-focus)] bg-[var(--mw-tint)] font-semibold text-[var(--mw-ink)]'
+                        : 'border-[var(--mw-border)] text-[var(--mw-muted)]'
+                    }`}
+                  >
                     <button
                       type="button"
-                      onClick={() => onNavigate?.(id)}
-                      className="mw-button mw-button-secondary text-xs"
+                      onClick={() => {
+                        setDraft({ ...p });
+                        const nextDocInfo: DefaultDocInfo = {
+                          ...defaultDocInfo,
+                          defaultOrgProfileId: p.id,
+                        };
+                        setDefaultDocInfo(nextDocInfo);
+                        saveDefaultDocInfo(nextDocInfo);
+                        setSavedMsg('');
+                      }}
                     >
-                      Mở công cụ
-                      <ArrowRight className="size-3.5" aria-hidden="true" />
+                      {p.profileName || p.issuingOrg}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteOrg(p.id)}
+                      className="text-slate-400 hover:text-rose-600"
+                      title="Xóa hồ sơ này"
+                    >
+                      <Trash2 className="size-3" aria-hidden="true" />
                     </button>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
-          </section>
-        ))}
-      </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 text-xs">
+            <label className="block space-y-1">
+              <span className="font-semibold text-[var(--mw-muted)]">Tên cơ quan / đơn vị ban hành</span>
+              <input
+                type="text"
+                placeholder="VD: SỞ NỘI VỤ"
+                value={draft.issuingOrg}
+                onChange={(e) => setDraft({ ...draft, issuingOrg: e.target.value })}
+                className="w-full rounded-lg border border-[var(--mw-border)] bg-[var(--mw-surface)] px-3 py-2 text-xs"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="font-semibold text-[var(--mw-muted)]">Cơ quan chủ quản</span>
+              <input
+                type="text"
+                placeholder="VD: ỦY BAN NHÂN DÂN TỈNH..."
+                value={draft.governingOrg}
+                onChange={(e) => setDraft({ ...draft, governingOrg: e.target.value })}
+                className="w-full rounded-lg border border-[var(--mw-border)] bg-[var(--mw-surface)] px-3 py-2 text-xs"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="font-semibold text-[var(--mw-muted)]">Địa danh</span>
+              <input
+                type="text"
+                placeholder="VD: Hà Nội"
+                value={draft.defaultLocation}
+                onChange={(e) => setDraft({ ...draft, defaultLocation: e.target.value })}
+                className="w-full rounded-lg border border-[var(--mw-border)] bg-[var(--mw-surface)] px-3 py-2 text-xs"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="font-semibold text-[var(--mw-muted)]">Tên viết tắt</span>
+              <input
+                type="text"
+                placeholder="VD: SNV"
+                value={draft.agencyAbbreviation}
+                onChange={(e) => setDraft({ ...draft, agencyAbbreviation: e.target.value })}
+                className="w-full rounded-lg border border-[var(--mw-border)] bg-[var(--mw-surface)] px-3 py-2 text-xs"
+              />
+            </label>
+          </div>
+
+          <div className="border-t border-[var(--mw-border)] pt-3 space-y-3">
+            <div className="text-xs font-bold text-[var(--mw-ink)]">
+              Thông tin mặc định sử dụng khi tạo văn bản
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 text-xs">
+              <label className="block space-y-1">
+                <span className="font-semibold text-[var(--mw-muted)]">Loại hình đơn vị</span>
+                <select
+                  value={draft.sector}
+                  onChange={(e) => setDraft({ ...draft, sector: e.target.value as OrgSector })}
+                  className="w-full rounded-lg border border-[var(--mw-border)] bg-[var(--mw-surface)] px-3 py-2 text-xs"
+                >
+                  <option value="stateAgency">Cơ quan Nhà nước / Đơn vị sự nghiệp</option>
+                  <option value="partyOrg">Tổ chức Đảng</option>
+                  <option value="enterprise">Doanh nghiệp</option>
+                  <option value="other">Tổ chức khác</option>
+                </select>
+              </label>
+              <label className="block space-y-1">
+                <span className="font-semibold text-[var(--mw-muted)]">Tên gợi nhớ hồ sơ</span>
+                <input
+                  type="text"
+                  placeholder="Để trống sẽ tự lấy theo Tên cơ quan"
+                  value={draft.profileName}
+                  onChange={(e) => setDraft({ ...draft, profileName: e.target.value })}
+                  className="w-full rounded-lg border border-[var(--mw-border)] bg-[var(--mw-surface)] px-3 py-2 text-xs"
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="font-semibold text-[var(--mw-muted)]">Chức vụ người ký mặc định</span>
+                <input
+                  type="text"
+                  placeholder="VD: GIÁM ĐỐC"
+                  value={defaultDocInfo.defaultSignerTitle}
+                  onChange={(e) =>
+                    setDefaultDocInfo({ ...defaultDocInfo, defaultSignerTitle: e.target.value })
+                  }
+                  className="w-full rounded-lg border border-[var(--mw-border)] bg-[var(--mw-surface)] px-3 py-2 text-xs"
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="font-semibold text-[var(--mw-muted)]">Họ và tên người ký mặc định</span>
+                <input
+                  type="text"
+                  placeholder="VD: Nguyễn Văn A"
+                  value={defaultDocInfo.defaultSignerName}
+                  onChange={(e) =>
+                    setDefaultDocInfo({ ...defaultDocInfo, defaultSignerName: e.target.value })
+                  }
+                  className="w-full rounded-lg border border-[var(--mw-border)] bg-[var(--mw-surface)] px-3 py-2 text-xs"
+                />
+              </label>
+            </div>
+
+            <label className="inline-flex items-center gap-2 text-xs cursor-pointer text-[var(--mw-ink)]">
+              <input
+                type="checkbox"
+                checked={draft.showGoverningOrgDefault}
+                onChange={(e) => setDraft({ ...draft, showGoverningOrgDefault: e.target.checked })}
+              />
+              Hiển thị tên cơ quan chủ quản phía trên tên cơ quan khi tạo văn bản mới
+            </label>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+            {savedMsg ? (
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                <CheckCircle2 className="size-4" aria-hidden="true" />
+                {savedMsg}
+              </span>
+            ) : (
+              <span />
+            )}
+            <button type="submit" disabled={savingOrg} className="mw-button mw-button-primary">
+              <Save className="size-3.5" aria-hidden="true" />
+              {savingOrg ? 'Đang lưu...' : 'Lưu hồ sơ cơ quan'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* NHÓM B: ĐỊNH DẠNG MẶC ĐỊNH */}
+      {group === 'format' && (
+        <div className="space-y-4">
+          <div className="mw-panel p-4 sm:p-5 space-y-4">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-bold text-[var(--mw-ink)]">B. Định dạng mặc định</h3>
+                <p className="text-xs text-[var(--mw-muted)]">
+                  Các thông số chuẩn áp dụng cho chữ viết, đoạn văn và làm sạch lỗi gõ.
+                </p>
+              </div>
+              {applyPreset && (
+                <button
+                  type="button"
+                  onClick={handleRestoreDefaultFormat}
+                  className="mw-button mw-button-secondary text-xs"
+                >
+                  <RotateCcw className="size-3.5" aria-hidden="true" />
+                  Khôi phục mặc định
+                </button>
+              )}
+            </div>
+            {formatResetMsg && (
+              <div className="flex items-center gap-1.5 rounded-lg bg-[var(--mw-success-bg)] px-3 py-2 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                <CheckCircle2 className="size-4 shrink-0" aria-hidden="true" />
+                <span>{formatResetMsg}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 text-xs">
+              <label className="block space-y-1">
+                <span className="font-semibold text-[var(--mw-muted)]">Phông chữ</span>
+                <select
+                  value={config.format.fontName}
+                  onChange={(e) => updateFormat('fontName', e.target.value)}
+                  className="w-full rounded-lg border border-[var(--mw-border)] bg-[var(--mw-surface)] px-3 py-2 text-xs"
+                >
+                  <option value="Times New Roman">Times New Roman</option>
+                  <option value="Arial">Arial</option>
+                  <option value="Calibri">Calibri</option>
+                  <option value="Tahoma">Tahoma</option>
+                </select>
+              </label>
+              <label className="block space-y-1">
+                <span className="font-semibold text-[var(--mw-muted)]">Cỡ chữ (pt)</span>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="10"
+                  max="20"
+                  value={config.format.fontSizePt}
+                  onChange={(e) => updateFormat('fontSizePt', Number(e.target.value) || 14)}
+                  className="w-full rounded-lg border border-[var(--mw-border)] bg-[var(--mw-surface)] px-3 py-2 text-xs"
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="font-semibold text-[var(--mw-muted)]">Giãn dòng</span>
+                <input
+                  type="number"
+                  step="0.05"
+                  min="1"
+                  max="2.5"
+                  value={config.format.lineSpacing}
+                  onChange={(e) => updateFormat('lineSpacing', Number(e.target.value) || 1.15)}
+                  className="w-full rounded-lg border border-[var(--mw-border)] bg-[var(--mw-surface)] px-3 py-2 text-xs"
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="font-semibold text-[var(--mw-muted)]">Khoảng cách trước đoạn (pt)</span>
+                <input
+                  type="number"
+                  step="1"
+                  min="0"
+                  max="24"
+                  value={config.format.spaceBeforePt}
+                  onChange={(e) => updateFormat('spaceBeforePt', Number(e.target.value) || 0)}
+                  className="w-full rounded-lg border border-[var(--mw-border)] bg-[var(--mw-surface)] px-3 py-2 text-xs"
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="font-semibold text-[var(--mw-muted)]">Khoảng cách sau đoạn (pt)</span>
+                <input
+                  type="number"
+                  step="1"
+                  min="0"
+                  max="24"
+                  value={config.format.spaceAfterPt}
+                  onChange={(e) => updateFormat('spaceAfterPt', Number(e.target.value) || 6)}
+                  className="w-full rounded-lg border border-[var(--mw-border)] bg-[var(--mw-surface)] px-3 py-2 text-xs"
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="font-semibold text-[var(--mw-muted)]">Thụt lề đầu dòng (cm)</span>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="3"
+                  value={config.format.firstLineIndentCm}
+                  onChange={(e) => updateFormat('firstLineIndentCm', Number(e.target.value) || 1.27)}
+                  className="w-full rounded-lg border border-[var(--mw-border)] bg-[var(--mw-surface)] px-3 py-2 text-xs"
+                />
+              </label>
+            </div>
+
+            <label className="flex items-start gap-2.5 rounded-lg border border-[var(--mw-border)] bg-[var(--mw-canvas)] p-3 text-xs cursor-pointer">
+              <input
+                type="checkbox"
+                checked={config.format.protectAdminBlocks}
+                onChange={(e) => updateFormat('protectAdminBlocks', e.target.checked)}
+                className="mt-0.5"
+              />
+              <div>
+                <div className="font-semibold text-[var(--mw-ink)]">
+                  Giữ nguyên căn lề riêng của phần đầu văn bản và chữ ký
+                </div>
+                <div className="text-[var(--mw-muted)]">
+                  Không tự động căn đều hoặc thụt đầu dòng lên Quốc hiệu, tiêu ngữ, tiêu đề và khối chữ ký.
+                </div>
+              </div>
+            </label>
+          </div>
+
+          <div className="mw-panel p-4 sm:p-5 space-y-3">
+            <h4 className="text-sm font-bold text-[var(--mw-ink)]">Quy tắc làm sạch văn bản</h4>
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 text-xs">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={config.cleaner.fixMultipleSpaces}
+                  onChange={(e) => updateCleaner('fixMultipleSpaces', e.target.checked)}
+                />
+                <span>Xóa khoảng trắng thừa giữa các từ</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={config.cleaner.fixPunctuationSpacing}
+                  onChange={(e) => updateCleaner('fixPunctuationSpacing', e.target.checked)}
+                />
+                <span>Sửa khoảng trắng trước và sau dấu câu</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={config.cleaner.fixSoftBreaks}
+                  onChange={(e) => updateCleaner('fixSoftBreaks', e.target.checked)}
+                />
+                <span>Chuẩn hóa xuống dòng tránh giãn chữ</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={config.cleaner.removeEmptyParagraphs}
+                  onChange={(e) => updateCleaner('removeEmptyParagraphs', e.target.checked)}
+                />
+                <span>Xóa dòng trống dư thừa</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={config.cleaner.normalizeNd30Dates}
+                  onChange={(e) => updateCleaner('normalizeNd30Dates', e.target.checked)}
+                />
+                <span>Chuẩn hóa cách viết ngày tháng văn bản</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={config.cleaner.convertLegacyEncoding}
+                  onChange={(e) => updateCleaner('convertLegacyEncoding', e.target.checked)}
+                />
+                <span>Tự chuyển font chữ cũ (TCVN3, VNI) sang Unicode</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NHÓM C: TRANG GIẤY VÀ HEADER/FOOTER */}
+      {group === 'page' && (
+        <div className="space-y-4">
+          <div className="mw-panel p-4 sm:p-5 space-y-4">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-bold text-[var(--mw-ink)]">
+                  C. Trang giấy và Header/Footer
+                </h3>
+                <p className="text-xs text-[var(--mw-muted)]">
+                  Thiết lập khổ giấy, hướng trang, lề giấy, đánh số trang và định dạng bảng biểu.
+                </p>
+              </div>
+              {applyPreset && (
+                <button
+                  type="button"
+                  onClick={handleRestoreDefaultFormat}
+                  className="mw-button mw-button-secondary text-xs"
+                >
+                  <RotateCcw className="size-3.5" aria-hidden="true" />
+                  Khôi phục mặc định
+                </button>
+              )}
+            </div>
+            {formatResetMsg && (
+              <div className="flex items-center gap-1.5 rounded-lg bg-[var(--mw-success-bg)] px-3 py-2 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                <CheckCircle2 className="size-4 shrink-0" aria-hidden="true" />
+                <span>{formatResetMsg}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 text-xs">
+              <label className="block space-y-1">
+                <span className="font-semibold text-[var(--mw-muted)]">Khổ giấy</span>
+                <select
+                  value={config.format.paperSize}
+                  onChange={(e) => updateFormat('paperSize', e.target.value as PaperSize)}
+                  className="w-full rounded-lg border border-[var(--mw-border)] bg-[var(--mw-surface)] px-3 py-2 text-xs"
+                >
+                  <option value="a4">A4 (21 × 29,7 cm)</option>
+                  <option value="a3">A3 (29,7 × 42 cm)</option>
+                  <option value="letter">Letter</option>
+                </select>
+              </label>
+              <label className="block space-y-1">
+                <span className="font-semibold text-[var(--mw-muted)]">Hướng giấy</span>
+                <select
+                  value={config.pageToc.orientationMode}
+                  onChange={(e) => updatePageToc('orientationMode', e.target.value as OrientationMode)}
+                  className="w-full rounded-lg border border-[var(--mw-border)] bg-[var(--mw-surface)] px-3 py-2 text-xs"
+                >
+                  <option value="keep">Giữ nguyên hướng giấy của tài liệu</option>
+                  <option value="allPortrait">Toàn bộ trang dọc</option>
+                  <option value="allLandscape">Toàn bộ trang ngang</option>
+                  <option value="rotateRanges">Xoay ngang các trang chỉ định</option>
+                </select>
+              </label>
+            </div>
+
+            <div>
+              <div className="text-xs font-semibold text-[var(--mw-muted)] mb-2">Lề trang (cm)</div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 text-xs">
+                {(
+                  [
+                    ['marginTopCm', 'Lề trên'],
+                    ['marginBottomCm', 'Lề dưới'],
+                    ['marginLeftCm', 'Lề trái'],
+                    ['marginRightCm', 'Lề phải'],
+                  ] as const
+                ).map(([key, label]) => (
+                  <label key={key} className="block space-y-1">
+                    <span className="text-[var(--mw-muted)]">{label}</span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0.5"
+                      max="6"
+                      value={config.format[key]}
+                      onChange={(e) => updateFormat(key, Number(e.target.value) || 2)}
+                      className="w-full rounded-lg border border-[var(--mw-border)] bg-[var(--mw-surface)] px-3 py-1.5 text-xs"
+                    />
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="mw-panel p-4 sm:p-5 space-y-3 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h4 className="text-sm font-bold text-[var(--mw-ink)]">Đánh số trang &amp; Header/Footer</h4>
+              <label className="inline-flex items-center gap-2 font-semibold cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={config.pageToc.pageNumbersEnabled}
+                  onChange={(e) => updatePageToc('pageNumbersEnabled', e.target.checked)}
+                />
+                Bật đánh số trang tự động
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="block space-y-1">
+                <span className="font-semibold text-[var(--mw-muted)]">Vị trí đánh số trang</span>
+                <select
+                  value={config.pageToc.pageNumPosition}
+                  onChange={(e) => updatePageToc('pageNumPosition', e.target.value as PageNumPosition)}
+                  className="w-full rounded-lg border border-[var(--mw-border)] bg-[var(--mw-surface)] px-3 py-2 text-xs"
+                >
+                  <option value="topCenter">Giữa đầu trang (Chuẩn hành chính)</option>
+                  <option value="topRight">Góc phải đầu trang</option>
+                  <option value="bottomCenter">Giữa cuối trang</option>
+                  <option value="bottomRight">Góc phải cuối trang</option>
+                </select>
+              </label>
+              <div className="flex items-end pb-2">
+                <label className="inline-flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={config.pageToc.skipFirstPage}
+                    onChange={(e) => updatePageToc('skipFirstPage', e.target.checked)}
+                  />
+                  Không hiển thị số trang ở trang đầu tiên
+                </label>
+              </div>
+              <label className="block space-y-1">
+                <span className="font-semibold text-[var(--mw-muted)]">Nội dung đầu trang (Header)</span>
+                <input
+                  type="text"
+                  placeholder="Để trống nếu không thêm chữ ở đầu trang"
+                  value={config.pageToc.headerText}
+                  onChange={(e) => updatePageToc('headerText', e.target.value)}
+                  className="w-full rounded-lg border border-[var(--mw-border)] bg-[var(--mw-surface)] px-3 py-2 text-xs"
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="font-semibold text-[var(--mw-muted)]">Nội dung chân trang (Footer)</span>
+                <input
+                  type="text"
+                  placeholder="Để trống nếu không thêm chữ ở chân trang"
+                  value={config.pageToc.footerText}
+                  onChange={(e) => updatePageToc('footerText', e.target.value)}
+                  className="w-full rounded-lg border border-[var(--mw-border)] bg-[var(--mw-surface)] px-3 py-2 text-xs"
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="mw-panel p-4 sm:p-5 space-y-3 text-xs">
+            <h4 className="text-sm font-bold text-[var(--mw-ink)]">Thiết lập bảng biểu thường dùng</h4>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 items-center">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={config.format.smartTables}
+                  onChange={(e) => updateFormat('smartTables', e.target.checked)}
+                />
+                <span>Tự căn chỉnh bảng vừa khổ trang</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={config.format.repeatTableHeaders}
+                  onChange={(e) => updateFormat('repeatTableHeaders', e.target.checked)}
+                />
+                <span>Lặp dòng tiêu đề khi bảng qua trang mới</span>
+              </label>
+              <label className="flex items-center gap-2">
+                <span className="text-[var(--mw-muted)] shrink-0">Cỡ chữ trong bảng (pt):</span>
+                <input
+                  type="number"
+                  step="0.5"
+                  min="9"
+                  max="16"
+                  value={config.format.tableFontSizePt}
+                  onChange={(e) => updateFormat('tableFontSizePt', Number(e.target.value) || 13)}
+                  className="w-20 rounded-lg border border-[var(--mw-border)] bg-[var(--mw-surface)] px-2.5 py-1.5 text-xs"
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NHÓM D: HỆ THỐNG VÀ SAO LƯU */}
+      {group === 'system' && (
+        <div className="space-y-4">
+          <div className="mw-panel p-4 sm:p-5 space-y-3 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-bold text-[var(--mw-ink)]">
+                  Kiểm tra Microsoft Word
+                </h3>
+                <p className="text-[var(--mw-muted)]">
+                  {isNativeWin
+                    ? systemStatus?.officeVersion
+                      ? `Đã phát hiện Microsoft Office phiên bản ${systemStatus.officeVersion} sẵn sàng hỗ trợ mở tệp .doc cũ và xuất PDF.`
+                      : 'Chưa phát hiện Microsoft Word trên máy. Các tệp .docx vẫn xử lý bình thường.'
+                    : 'Phiên bản trình duyệt xử lý trực tiếp tệp .docx ngay trên máy của bạn.'}
+                </p>
+              </div>
+              {isNativeWin ? (
+                <button
+                  type="button"
+                  disabled={loadingSystem}
+                  onClick={() => refreshSystemAndAddins('word')}
+                  className="mw-button mw-button-secondary"
+                >
+                  <RefreshCw
+                    className={`size-3.5 ${loadingSystem ? 'animate-spin' : ''}`}
+                    aria-hidden="true"
+                  />
+                  Kiểm tra lại
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onOpenDesktopDownload}
+                  className="mw-button mw-button-secondary"
+                >
+                  <Download className="size-3.5" aria-hidden="true" />
+                  Tải bản cài đặt Windows
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="mw-panel p-4 sm:p-5 space-y-3 text-xs">
+            <div>
+              <h3 className="text-sm font-bold text-[var(--mw-ink)]">
+                Quản lý bản sao lưu &amp; Khôi phục tài liệu
+              </h3>
+              <p className="text-[var(--mw-muted)]">
+                Khi chuẩn hóa ghi đè tệp gốc trên máy tính, MonWord luôn tạo bản sao lưu an toàn trước khi sửa để bạn có thể khôi phục bất cứ lúc nào.
+              </p>
+            </div>
+            {backupEntries.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-[var(--mw-border)] p-4 text-center text-[var(--mw-muted)]">
+                Chưa có bản sao lưu nào trong danh sách gần đây.
+              </div>
+            ) : (
+              <div className="divide-y divide-[var(--mw-border)] rounded-lg border border-[var(--mw-border)]">
+                {backupEntries.map((item) => (
+                  <div
+                    key={item.path}
+                    className="flex flex-wrap items-center justify-between gap-2 p-3"
+                  >
+                    <div className="min-w-0">
+                      <div className="font-bold text-[var(--mw-ink)] truncate">{item.name}</div>
+                      <div className="text-[11px] text-[var(--mw-muted)] truncate">
+                        Bản sao lưu: {item.backupPath}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {onOpenOutput && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenOutput(item.backupPath, true)}
+                          className="mw-button mw-button-secondary"
+                        >
+                          <FolderOpen className="size-3.5" aria-hidden="true" />
+                          Mở thư mục
+                        </button>
+                      )}
+                      {onRestoreBackup && (
+                        <button
+                          type="button"
+                          onClick={() => onRestoreBackup(item.path, item.backupPath)}
+                          className="mw-button mw-button-primary"
+                        >
+                          <RotateCcw className="size-3.5" aria-hidden="true" />
+                          Khôi phục tài liệu
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="mw-panel p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div>
+              <h3 className="text-sm font-bold text-[var(--mw-ink)]">Phiên bản ứng dụng</h3>
+              <p className="text-[var(--mw-muted)]">
+                Đang sử dụng MonWord phiên bản <strong>v{currentVersion}</strong>.
+              </p>
+            </div>
+            {onOpenUpdate && (
+              <button
+                type="button"
+                onClick={onOpenUpdate}
+                className="mw-button mw-button-secondary"
+              >
+                <RefreshCw className="size-3.5" aria-hidden="true" />
+                Kiểm tra cập nhật
+              </button>
+            )}
+          </div>
+
+          {adminEnabled && onNavigate && (
+            <div className="mw-panel p-4 sm:p-5 space-y-3 text-xs">
+              <div className="font-bold text-[var(--mw-ink)]">
+                Công cụ kỹ thuật &amp; Quản trị (Chế độ ?admin=1)
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {ADVANCED_NAV_GROUPS.flatMap((g) => g.items).map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => onNavigate(item.id)}
+                    className="mw-button mw-button-secondary"
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -553,6 +1571,8 @@ export const ConfigPanels: React.FC<ConfigPanelsProps> = ({
   onDownloadOutput,
   onRestoreBackup,
   onClearRecent,
+  currentVersion = '4.0.0',
+  onOpenUpdate,
   renderHeaderBuilder,
   renderStandardizer,
   renderTemplateEngine,
@@ -560,6 +1580,7 @@ export const ConfigPanels: React.FC<ConfigPanelsProps> = ({
   renderComplianceAudit,
   renderLivePreview,
 }) => {
+  const adminMode = isAdminToolsEnabled();
   const isSubTab = isAdvancedSubTab(activeTab);
 
   const renderPanelBody = (): React.ReactNode => {
@@ -580,7 +1601,28 @@ export const ConfigPanels: React.FC<ConfigPanelsProps> = ({
       );
     }
     if (activeTab === 'advancedSettings') {
-      return <AdvancedSettingsHub onNavigate={onNavigate} />;
+      return (
+        <SettingsWorkspace
+          config={config}
+          applyPreset={applyPreset}
+          updateFormat={updateFormat}
+          updateCleaner={updateCleaner}
+          updatePageToc={updatePageToc}
+          isNativeWin={isNativeWin}
+          systemStatus={systemStatus}
+          loadingSystem={loadingSystem}
+          refreshSystemAndAddins={refreshSystemAndAddins}
+          onOpenDesktopDownload={onOpenDesktopDownload}
+          files={files}
+          results={results}
+          recentDocs={recentDocs}
+          onOpenOutput={onOpenOutput}
+          onRestoreBackup={onRestoreBackup}
+          currentVersion={currentVersion}
+          onOpenUpdate={onOpenUpdate}
+          onNavigate={onNavigate}
+        />
+      );
     }
     if (activeTab === 'headerBuilder' && renderHeaderBuilder) {
       return <>{renderHeaderBuilder()}</>;
@@ -598,7 +1640,35 @@ export const ConfigPanels: React.FC<ConfigPanelsProps> = ({
       return <>{renderComplianceAudit()}</>;
     }
     if (activeTab === 'livePreview' && renderLivePreview) {
-      return <>{renderLivePreview()}</>;
+      return (
+        <div className="space-y-3">
+          {onNavigate && (
+            <div className="mw-panel flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onNavigate('standardizer')}
+                  className="mw-button mw-button-secondary text-xs"
+                >
+                  <ArrowLeft className="size-3.5" aria-hidden="true" />
+                  Quay lại Chuẩn hóa văn bản
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onNavigate('complianceAudit')}
+                  className="mw-button mw-button-secondary text-xs"
+                >
+                  Kiểm tra văn bản
+                </button>
+              </div>
+              <span className="text-xs text-[var(--mw-muted)]">
+                Xem trước bản in thực tế (Trước / Sau chuẩn hóa)
+              </span>
+            </div>
+          )}
+          {renderLivePreview()}
+        </div>
+      );
     }
 
   if (activeTab === 'oneClick') {
@@ -1301,6 +2371,20 @@ export const ConfigPanels: React.FC<ConfigPanelsProps> = ({
                 <option value="commentsOnly">Chỉ cho phép Bình luận</option>
                 <option value="trackedChanges">Bắt buộc Track Changes</option>
               </select>
+              {config.security.lockMode !== 'none' && (
+                <div className="mt-2">
+                  <label className="block text-[11px] font-semibold text-slate-500 mb-1">
+                    Mật khẩu khóa bảo vệ (tùy chọn)
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="Nhập mật khẩu khóa chỉnh sửa..."
+                    value={config.security.lockPassword}
+                    onChange={(e) => updateSecurity('lockPassword', e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs"
+                  />
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-[11px] font-semibold text-slate-500 mb-1">Tác giả mới (Author)</label>
@@ -1690,7 +2774,7 @@ export const ConfigPanels: React.FC<ConfigPanelsProps> = ({
 
   return (
     <div className="space-y-4">
-      {isSubTab && onNavigate && (
+      {isSubTab && adminMode && activeTab !== 'livePreview' && onNavigate && (
         <AdvancedSubNavBar activeTab={activeTab} onNavigate={onNavigate} />
       )}
       {renderPanelBody()}

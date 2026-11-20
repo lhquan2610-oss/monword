@@ -3,6 +3,55 @@ import { bridge } from '../bridge';
 import type { PlatformEdition, UILayoutOverride } from '../types';
 
 const EDITION_STORAGE_KEY = 'monword_ui_edition_override';
+const ADMIN_TOOLS_STORAGE_KEY = 'monword_admin_tools';
+export const DEFAULT_DOC_INFO_KEY = 'monword_default_doc_info_v1';
+
+export interface DefaultDocInfo {
+  defaultOrgProfileId: string;
+  defaultSignerTitle: string;
+  defaultSignerName: string;
+}
+
+export function loadDefaultDocInfo(): DefaultDocInfo {
+  if (typeof window === 'undefined') {
+    return { defaultOrgProfileId: '', defaultSignerTitle: '', defaultSignerName: '' };
+  }
+  try {
+    const raw = localStorage.getItem(DEFAULT_DOC_INFO_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<DefaultDocInfo>;
+      return {
+        defaultOrgProfileId: parsed.defaultOrgProfileId ?? '',
+        defaultSignerTitle: parsed.defaultSignerTitle ?? '',
+        defaultSignerName: parsed.defaultSignerName ?? '',
+      };
+    }
+  } catch {
+    // ignore
+  }
+  return { defaultOrgProfileId: '', defaultSignerTitle: '', defaultSignerName: '' };
+}
+
+export function saveDefaultDocInfo(info: DefaultDocInfo): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(DEFAULT_DOC_INFO_KEY, JSON.stringify(info));
+  } catch {
+    // ignore
+  }
+}
+
+export function isAdminToolsEnabled(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const param = new URLSearchParams(window.location.search).get('admin');
+    if (param === '1' || param === 'true') return true;
+    if (param === '0' || param === 'false') return false;
+    return localStorage.getItem(ADMIN_TOOLS_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 export interface PlatformSnapshot {
   edition: PlatformEdition;

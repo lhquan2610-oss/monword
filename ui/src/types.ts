@@ -30,6 +30,8 @@ export interface RecentDocEntry {
   ext: string;
   updatedAt: string;
   status: 'selected' | 'checked' | 'standardized';
+  operation?: 'standardize' | 'audit' | 'template';
+  resultStatus?: 'completed' | 'passed' | 'needsFix' | 'failed';
   outputPath?: string;
   backupPath?: string | null;
   summary?: string;

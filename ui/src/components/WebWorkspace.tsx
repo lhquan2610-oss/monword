@@ -23,12 +23,12 @@ import type {
   UILayoutOverride,
   UpdateCheckResult,
 } from '../types';
-import { A4LivePreview } from './A4LivePreview';
 import { ConfigPanels, type ConfigPanelsProps } from './ConfigPanels';
 import { FileQueuePanel } from './FileQueuePanel';
 import { PlatformSwitcher, VersionOtaPill } from './PlatformSwitcher';
 import { WorkspaceHome } from './WorkspaceHome';
 import { WorkspaceNavigation } from './WorkspaceNavigation';
+import { isAdminToolsEnabled } from '../utils/platform';
 
 interface WebWorkspaceProps {
   darkMode: boolean;
@@ -78,7 +78,7 @@ export const WebWorkspace: React.FC<WebWorkspaceProps> = ({
   activeTab,
   setActiveTab,
   configPanelsProps,
-  config,
+  config: _config,
   files,
   audits,
   results,
@@ -99,6 +99,11 @@ export const WebWorkspace: React.FC<WebWorkspaceProps> = ({
   toast,
   onOpenDesktopDownload,
 }) => {
+  const adminMode = isAdminToolsEnabled();
+  const showBatchSidebar =
+    adminMode &&
+    ['oneClick', 'format', 'pageToc', 'cleaner', 'security'].includes(activeTab);
+
   return (
     <div
       onDragOver={onWebDragOver}
@@ -125,25 +130,27 @@ export const WebWorkspace: React.FC<WebWorkspaceProps> = ({
                   currentVersion={currentVersion}
                   updateInfo={updateInfo}
                   onOpenUpdate={onOpenUpdate}
-                  editionLabel="Web Auto-OTA"
+                  editionLabel="Web"
                 />
                 <span className="hidden lg:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                  <ShieldCheck className="w-3 h-3" /> Xử lý 100% tại trình duyệt
+                  <ShieldCheck className="w-3 h-3" /> Xử lý an toàn trên thiết bị
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate hidden sm:block">
-                Chuẩn hóa văn bản NĐ 30/2020 &amp; Văn bản Đảng · monword.vercel.app
+                Chuẩn hóa và kiểm tra thể thức văn bản
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <PlatformSwitcher
-              edition={edition}
-              override={override}
-              onChangeOverride={onChangeOverride}
-              compact
-            />
+            {adminMode && (
+              <PlatformSwitcher
+                edition={edition}
+                override={override}
+                onChangeOverride={onChangeOverride}
+                compact
+              />
+            )}
 
             <button
               type="button"
@@ -185,56 +192,55 @@ export const WebWorkspace: React.FC<WebWorkspaceProps> = ({
           {activeTab === 'home' ? (
             <WorkspaceHome
               files={files}
+              recentDocs={configPanelsProps.recentDocs}
               onPickFiles={onPickFiles}
               onTask={setActiveTab}
-              onShowFiles={() => setActiveTab('oneClick')}
+              onShowFiles={() => setActiveTab('history')}
               progress={busy ? progress : null}
               isDragging={isDragging}
             />
           ) : (
             <>
-              <div role="group" aria-label="Thao tác tài liệu" className="mw-panel flex flex-wrap items-center justify-between gap-3 p-3">
-                <div className="flex flex-wrap items-center gap-3 text-xs">
-                  <span className="font-bold text-slate-700 dark:text-slate-200">
-                    {files.length} tệp trong hàng đợi
-                  </span>
-                  {busy && progress && (
-                    <span role="status" className="inline-flex items-center gap-1 text-slate-700 dark:text-slate-200 font-semibold">
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      Đang xử lý {progress.current}/{progress.total}
+              {showBatchSidebar && (
+                <div role="group" aria-label="Thao tác tài liệu" className="mw-panel flex flex-wrap items-center justify-between gap-3 p-3">
+                  <div className="flex flex-wrap items-center gap-3 text-xs">
+                    <span className="font-bold text-slate-700 dark:text-slate-200">
+                      {files.length} tài liệu đang chọn
                     </span>
-                  )}
+                    {busy && progress && (
+                      <span role="status" className="inline-flex items-center gap-1 text-slate-700 dark:text-slate-200 font-semibold">
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        Đang xử lý {progress.current}/{progress.total}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button type="button" onClick={onPickFiles} className="mw-button mw-button-secondary">
+                      <FolderOpen className="size-4" aria-hidden="true" /> Mở tài liệu
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy || files.length === 0}
+                      onClick={onAuditFiles}
+                      className="mw-button mw-button-secondary"
+                    >
+                      <SearchCheck className="w-4 h-4 text-indigo-500" />
+                      Kiểm tra văn bản
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy || files.length === 0}
+                      onClick={onProcessFiles}
+                      className="mw-button mw-button-primary"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      Chuẩn hóa tất cả
+                    </button>
+                  </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button type="button" onClick={onPickFiles} className="mw-button mw-button-secondary">
-                    <FolderOpen className="size-4" aria-hidden="true" /> Mở tài liệu
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy || files.length === 0}
-                    onClick={onAuditFiles}
-                    className="mw-button mw-button-secondary"
-                  >
-                    <SearchCheck className="w-4 h-4 text-indigo-500" />
-                    Kiểm tra lỗi
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy || files.length === 0}
-                    onClick={onProcessFiles}
-                    className="mw-button mw-button-primary"
-                  >
-                    <Play className="w-3.5 h-3.5 fill-current" />
-                    Chuẩn hóa nhanh
-                  </button>
-                </div>
-              </div>
-              {/* 2-Column Web Studio (full width for Live A4 Preview Studio) */}
-              {activeTab === 'livePreview' ? (
-                <div className="min-w-0">
-                  <ConfigPanels {...configPanelsProps} />
-                </div>
-              ) : (
+              )}
+
+              {showBatchSidebar ? (
                 <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_19rem] gap-4 items-start">
                   <div className="min-w-0 space-y-4">
                     <ConfigPanels {...configPanelsProps} />
@@ -256,12 +262,11 @@ export const WebWorkspace: React.FC<WebWorkspaceProps> = ({
                       onShareOutput={onShareOutput}
                       onRestoreBackup={() => {}}
                     />
-                    <A4LivePreview
-                      config={config}
-                      fileCount={files.length}
-                      onOpenFullPreview={() => setActiveTab('livePreview')}
-                    />
                   </div>
+                </div>
+              ) : (
+                <div className="min-w-0">
+                  <ConfigPanels {...configPanelsProps} />
                 </div>
               )}
             </>
@@ -286,10 +291,8 @@ export const WebWorkspace: React.FC<WebWorkspaceProps> = ({
             </a>
             <span>·</span>
             <span className="text-blue-600 font-bold">MonWord v{currentVersion}</span>
-            <span>·</span>
-            <span className="text-emerald-600 font-medium">MonEx</span>
           </div>
-          <div>Auto-Updated via Vercel Edge &amp; Live OTA</div>
+          <div>Xử lý tài liệu an toàn trên trình duyệt</div>
         </div>
       </footer>
     </div>

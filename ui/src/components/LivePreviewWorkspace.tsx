@@ -74,7 +74,7 @@ export interface LivePreviewWorkspaceProps {
   focusTarget?: LivePreviewFocusTarget | null;
   onClearFocusTarget?: () => void;
   onPickFiles: () => void;
-  onProcessCurrentFile?: () => void;
+  onProcessCurrentFile?: (filePath?: string, overrides?: PreviewOverrideConfig) => void;
   onStatusToast: (kind: 'success' | 'error' | 'info', msg: string) => void;
 }
 
@@ -775,11 +775,11 @@ export const LivePreviewWorkspace: React.FC<LivePreviewWorkspaceProps> = ({
         effectiveOverrides.enabled || Boolean(savedOutputAfterPath) || viewMode !== 'before',
       includeAuditSync,
       scope,
-      processConfig: null,
+      processConfig: config,
       overrides: effectiveOverrides,
       preferIncremental: true,
     }),
-    [activeFile?.path, effectiveOverrides, includeAuditSync, savedOutputAfterPath, scope, viewMode],
+    [activeFile?.path, config, effectiveOverrides, includeAuditSync, savedOutputAfterPath, scope, viewMode],
   );
 
   const runPreviewRender = useCallback(
@@ -2015,7 +2015,7 @@ export const LivePreviewWorkspace: React.FC<LivePreviewWorkspaceProps> = ({
                 {onProcessCurrentFile && (
                   <button
                     type="button"
-                    onClick={onProcessCurrentFile}
+                    onClick={() => onProcessCurrentFile(activeFile?.path, effectiveOverrides)}
                     className="w-full mw-button mw-button-primary justify-center mt-2"
                   >
                     <Play className="w-3.5 h-3.5 fill-current" />

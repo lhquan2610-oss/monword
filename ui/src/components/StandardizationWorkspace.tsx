@@ -1,42 +1,48 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
-  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
   CheckCircle2,
   Download,
   ExternalLink,
   Eye,
   FileSearch,
-  Filter,
-  Flag,
+  FileText,
+  Files,
   FolderOpen,
+  FolderPlus,
   GitCompare,
   HelpCircle,
-  Info,
-  Layers,
+  Home,
   MapPin,
   Play,
+  RefreshCw,
   RotateCcw,
+  Save,
   Share2,
   ShieldCheck,
-  SkipForward,
-  Wrench,
+  Trash2,
+  Upload,
 } from 'lucide-react';
 import { bridge } from '../bridge';
 import type {
   DiffDimension,
+  FileProcessResult,
   FileQueueItem,
   FixSafetyTier,
   OrganizationProfile,
   OutputMode,
-  RuleCategory,
+  PresetId,
+  PresetInfo,
+  ProgressPayload,
   StdAnalysisReport,
   StdDocScope,
   StdExecutionRequest,
   StdExecutionResult,
   StdFinding,
-  StdSeverity,
 } from '../types';
+import { isAdminToolsEnabled, loadDefaultDocInfo } from '../utils/platform';
 import { shareOutputBlob, triggerBrowserDownload } from '../utils/webDocxEngine';
 import { listWebOrgProfiles } from '../utils/webHeaderBuilder';
 import {
@@ -48,12 +54,69 @@ import {
 export interface StandardizationWorkspaceProps {
   files: FileQueueItem[];
   onPickFiles: () => void;
+  onDropWebFiles?: (fileList: FileList | File[]) => void;
   onReplaceWebFile?: (path: string, file: File) => void;
   onInspectInPreview?: (filePath: string, elementPath: string) => void;
+  renderEmbeddedPreview?: (filePath: string) => React.ReactNode;
+  onNavigateHome?: () => void;
   onStatusToast: (kind: 'success' | 'error' | 'info', msg: string) => void;
+  onPickFolder?: () => void;
+  onRemoveFile?: (path: string) => void;
+  onClearFiles?: () => void;
+  onBatchProcess?: () => void;
+  batchResults?: Record<string, FileProcessResult>;
+  batchBusy?: boolean;
+  batchProgress?: ProgressPayload | null;
+  presets?: PresetInfo[];
+  activePreset?: PresetId;
+  onSelectPreset?: (presetId: PresetId) => void;
+  outputModeConfig?: OutputMode;
+  onChangeOutputModeConfig?: (mode: OutputMode) => void;
+  onOpenOutput?: (path: string, reveal?: boolean) => void;
+  onDownloadOutput?: (blobUrl: string, fileName: string) => void;
+  onRestoreBackup?: (originalPath: string, backupPath: string) => void;
+  onSingleExecComplete?: (file: FileQueueItem, res: StdExecutionResult) => void;
+  preferredFilePath?: string | null;
+  preferredScope?: StdDocScope | null;
+  onClearPreferredTarget?: () => void;
 }
 
-const SCOPE_OPTIONS: { id: StdDocScope; label: string }[] = [
+type WizardStep = 1 | 2 | 3 | 4 | 5;
+type StdGroupKey = 'formal' | 'format' | 'layout' | 'manual';
+
+const WIZARD_STEPS: { id: WizardStep; label: string }[] = [
+  { id: 1, label: 'Chọn tài liệu' },
+  { id: 2, label: 'Chọn loại văn bản' },
+  { id: 3, label: 'Kiểm tra tài liệu' },
+  { id: 4, label: 'Xác nhận xử lý' },
+  { id: 5, label: 'Xem kết quả' },
+];
+
+const DOC_TYPE_CARDS: { id: StdDocScope; title: string; description: string }[] = [
+  {
+    id: 'adminNd30',
+    title: 'Văn bản hành chính',
+    description:
+      'Công văn, quyết định, tờ trình, báo cáo, thông báo, biên bản theo thể thức hành chính.',
+  },
+  {
+    id: 'partyDocument',
+    title: 'Văn bản Đảng',
+    description: 'Văn bản của cấp ủy, tổ chức Đảng theo quy định trình bày văn bản Đảng.',
+  },
+  {
+    id: 'enterpriseInternal',
+    title: 'Văn bản doanh nghiệp',
+    description: 'Quy chế, thông báo, tờ trình, biên bản họp và văn bản điều hành nội bộ.',
+  },
+  {
+    id: 'academicThesis',
+    title: 'Luận văn và tài liệu khác',
+    description: 'Luận văn, báo cáo học thuật, tài liệu nghiên cứu hoặc văn bản tự do.',
+  },
+];
+
+const ADMIN_SCOPE_OPTIONS: { id: StdDocScope; label: string }[] = [
   { id: 'autoDetect', label: 'Tự động nhận diện phạm vi' },
   { id: 'adminNd30', label: 'Văn bản hành chính (NĐ 30/2020/NĐ-CP)' },
   { id: 'enterpriseInternal', label: 'Văn bản nội bộ Doanh nghiệp' },
@@ -63,54 +126,28 @@ const SCOPE_OPTIONS: { id: StdDocScope; label: string }[] = [
   { id: 'freeform', label: 'Tài liệu tự do' },
 ];
 
-const CATEGORY_LABELS: Record<RuleCategory, string> = {
-  pageAndSection: '4.1 Trang & Section',
-  fontAndEncoding: '4.2 Phông & Mã chữ',
-  paragraphAndAlignment: '4.3 Đoạn & Căn chỉnh',
-  headingAndStructure: '4.4 Đề mục & Cấu trúc',
-  tableLayout: '4.5 Bảng biểu',
-  pageNumberAndHeaderFooter: '4.6 Số trang & Header/Footer',
-  capitalizationAndAbbreviation: '4.7 Viết hoa & Viết tắt',
-  preservationAndIntegrity: 'Bảo toàn OpenXML',
-};
-
-const SEVERITY_META: Record<StdSeverity, { label: string; cls: string; icon: React.ReactNode }> = {
-  critical: {
-    label: 'Nghiêm trọng',
-    cls: 'bg-rose-100 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300',
-    icon: <AlertCircle className="w-3.5 h-3.5 text-rose-600" />,
+const STD_GROUP_META: { key: StdGroupKey; title: string; subtitle: string }[] = [
+  {
+    key: 'formal',
+    title: 'A. Thể thức văn bản',
+    subtitle: 'Quốc hiệu, tiêu ngữ, tên cơ quan, số/ký hiệu, ngày tháng, tên loại, trích yếu, chữ ký và nơi nhận.',
   },
-  error: {
-    label: 'Lỗi cần sửa',
-    cls: 'bg-orange-100 text-orange-800 dark:bg-orange-950/70 dark:text-orange-300',
-    icon: <AlertTriangle className="w-3.5 h-3.5 text-orange-600" />,
+  {
+    key: 'format',
+    title: 'B. Định dạng văn bản',
+    subtitle: 'Phông chữ, cỡ chữ, căn lề đoạn, giãn dòng, khoảng cách đoạn và định dạng tiêu đề.',
   },
-  warning: {
-    label: 'Cảnh báo',
-    cls: 'bg-amber-100 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300',
-    icon: <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />,
+  {
+    key: 'layout',
+    title: 'C. Bố cục và trình bày',
+    subtitle: 'Lề trang, khổ giấy, hướng giấy, bảng biểu, hình ảnh, ngắt trang và đánh số trang.',
   },
-  information: {
-    label: 'Thông tin đề xuất',
-    cls: 'bg-sky-100 text-sky-800 dark:bg-sky-950/70 dark:text-sky-300',
-    icon: <Info className="w-3.5 h-3.5 text-sky-600" />,
+  {
+    key: 'manual',
+    title: 'D. Nội dung cần kiểm tra thủ công',
+    subtitle: 'Các nội dung nghiệp vụ, số liệu, ngày tháng hoặc trường hợp hệ thống chưa thể xác định tự động.',
   },
-};
-
-const TIER_META: Record<FixSafetyTier, { label: string; cls: string }> = {
-  groupAAuto: {
-    label: 'Nhóm A · Tự động an toàn',
-    cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
-  },
-  groupBConfirm: {
-    label: 'Nhóm B · Cần xác nhận',
-    cls: 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300',
-  },
-  groupCManualOnly: {
-    label: 'Nhóm C · Không tự sửa',
-    cls: 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-  },
-};
+];
 
 const DIFF_DIM_LABELS: Record<DiffDimension, string> = {
   textContent: 'Nội dung chữ',
@@ -125,14 +162,116 @@ const DIFF_DIM_LABELS: Record<DiffDimension, string> = {
   headerFooterAndPageNum: 'Header/Footer & Số trang',
 };
 
+const TIER_PLAIN_META: Record<FixSafetyTier, { label: string; cls: string }> = {
+  groupAAuto: {
+    label: 'Có thể tự động sửa an toàn',
+    cls: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300',
+  },
+  groupBConfirm: {
+    label: 'Cần bạn xác nhận trước khi sửa',
+    cls: 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300',
+  },
+  groupCManualOnly: {
+    label: 'Không tự động sửa (kiểm tra thủ công)',
+    cls: 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  },
+};
+
+function getInitialStdMode(): 'single' | 'batch' {
+  if (typeof window === 'undefined') return 'single';
+  try {
+    const p = new URLSearchParams(window.location.search).get('stdMode');
+    if (p === 'batch') return 'batch';
+  } catch {
+    // ignore
+  }
+  return 'single';
+}
+
+function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return 'Chưa rõ dung lượng';
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+function classifyFindingGroup(f: StdFinding): StdGroupKey {
+  if (f.safetyTier === 'groupCManualOnly' || f.status === 'indeterminate') {
+    return 'manual';
+  }
+  const text = `${f.ruleName} ${f.location} ${f.proposal}`.toLowerCase();
+  if (
+    f.category === 'capitalizationAndAbbreviation' ||
+    text.includes('quốc hiệu') ||
+    text.includes('tiêu ngữ') ||
+    text.includes('thể thức') ||
+    text.includes('số và ký hiệu') ||
+    text.includes('địa danh') ||
+    text.includes('chữ ký') ||
+    text.includes('nơi nhận') ||
+    text.includes('tên loại') ||
+    text.includes('trích yếu')
+  ) {
+    return 'formal';
+  }
+  if (
+    f.category === 'fontAndEncoding' ||
+    f.category === 'paragraphAndAlignment' ||
+    f.category === 'headingAndStructure'
+  ) {
+    return 'format';
+  }
+  if (f.status === 'needsReview' && (text.includes('ngày') || text.includes('người ký') || text.includes('nội dung'))) {
+    return 'manual';
+  }
+  return 'layout';
+}
+
+function mapDocKindLabel(scope: StdDocScope | null): string {
+  if (!scope) return 'Chưa chọn';
+  return (
+    DOC_TYPE_CARDS.find((d) => d.id === scope)?.title ||
+    ADMIN_SCOPE_OPTIONS.find((d) => d.id === scope)?.label ||
+    'Tài liệu Word'
+  );
+}
+
+function sanitizeOutputBaseName(name: string): string {
+  const clean = name.replace(/\.[^.]+$/, '');
+  return `${clean}_chuanhoa_ban_khac.docx`;
+}
+
 export const StandardizationWorkspace: React.FC<StandardizationWorkspaceProps> = ({
   files,
   onPickFiles,
+  onDropWebFiles,
   onReplaceWebFile,
   onInspectInPreview,
+  renderEmbeddedPreview,
+  onNavigateHome,
   onStatusToast,
+  onPickFolder,
+  onRemoveFile,
+  onClearFiles,
+  onBatchProcess,
+  batchResults = {},
+  batchBusy = false,
+  batchProgress = null,
+  presets = [],
+  activePreset = 'nd30',
+  onSelectPreset,
+  outputModeConfig = 'newCopy',
+  onChangeOutputModeConfig,
+  onOpenOutput,
+  onDownloadOutput,
+  onRestoreBackup,
+  onSingleExecComplete,
+  preferredFilePath,
+  preferredScope,
+  onClearPreferredTarget,
 }) => {
   const isNative = bridge.isNativeHost();
+  const adminMode = isAdminToolsEnabled();
+  const [mode, setMode] = useState<'single' | 'batch'>(() => getInitialStdMode());
 
   const wordFiles = useMemo(
     () =>
@@ -143,42 +282,65 @@ export const StandardizationWorkspace: React.FC<StandardizationWorkspaceProps> =
     [files],
   );
 
-  const [selectedPath, setSelectedPath] = useState<string>('');
-  const [scope, setScope] = useState<StdDocScope>('autoDetect');
-  const [outputMode, setOutputMode] = useState<OutputMode>('newCopy');
+  const [step, setStep] = useState<WizardStep>(() =>
+    preferredFilePath && wordFiles.some((f) => f.path === preferredFilePath) ? 2 : 1,
+  );
+  const [selectedPath, setSelectedPath] = useState<string>(() =>
+    preferredFilePath && wordFiles.some((f) => f.path === preferredFilePath)
+      ? preferredFilePath
+      : wordFiles[0]?.path || '',
+  );
+  const [selectedScope, setSelectedScope] = useState<StdDocScope | null>(() =>
+    preferredScope && preferredScope !== 'autoDetect' ? preferredScope : null,
+  );
+  const [outputMode, setOutputMode] = useState<OutputMode>(outputModeConfig);
   const [orgProfiles, setOrgProfiles] = useState<OrganizationProfile[]>([]);
   const [orgProfileId, setOrgProfileId] = useState<string>('');
+  const [dropWarning, setDropWarning] = useState<string | null>(null);
+  const [isDropOver, setIsDropOver] = useState<boolean>(false);
+
+  useEffect(() => {
+    setOutputMode(outputModeConfig);
+  }, [outputModeConfig]);
 
   const [applyAllGroupA, setApplyAllGroupA] = useState<boolean>(true);
   const [approvedIds, setApprovedIds] = useState<string[]>([]);
   const [skippedIds, setSkippedIds] = useState<string[]>([]);
   const [manualReviewIds, setManualReviewIds] = useState<string[]>([]);
-
-  const [sevFilter, setSevFilter] = useState<'all' | StdSeverity>('all');
-  const [catFilter, setCatFilter] = useState<'all' | RuleCategory>('all');
   const [diffFilter, setDiffFilter] = useState<'all' | DiffDimension>('all');
 
   const [analyzing, setAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [executing, setExecuting] = useState(false);
+  const [execError, setExecError] = useState<string | null>(null);
   const [report, setReport] = useState<StdAnalysisReport | null>(null);
   const [execResult, setExecResult] = useState<StdExecutionResult | null>(null);
   const [highlightedPath, setHighlightedPath] = useState<string | null>(null);
   const [backupByPath, setBackupByPath] = useState<Record<string, string>>({});
+  const [saveAsOpen, setSaveAsOpen] = useState(false);
+  const [saveAsName, setSaveAsName] = useState('');
 
   const inspectorRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let alive = true;
     const loadOrgs = async () => {
+      const defId = loadDefaultDocInfo().defaultOrgProfileId;
+      let loaded: OrganizationProfile[] = [];
       if (isNative) {
         try {
           const list = await bridge.invoke<OrganizationProfile[]>('list_org_profiles');
-          if (alive) setOrgProfiles(Array.isArray(list) ? list : []);
+          loaded = Array.isArray(list) ? list : [];
         } catch {
           // ignore
         }
       } else {
-        setOrgProfiles(listWebOrgProfiles());
+        loaded = listWebOrgProfiles();
+      }
+      if (!alive) return;
+      setOrgProfiles(loaded);
+      if (defId && loaded.some((o) => o.id === defId)) {
+        setOrgProfileId((prev) => prev || defId);
       }
     };
     void loadOrgs();
@@ -187,10 +349,31 @@ export const StandardizationWorkspace: React.FC<StandardizationWorkspaceProps> =
     };
   }, [isNative]);
 
+  // Apply handoff target when coming from ComplianceAuditWorkspace ("Chuẩn hóa tài liệu này")
+  useEffect(() => {
+    if (!preferredFilePath) return;
+    if (wordFiles.some((f) => f.path === preferredFilePath)) {
+      setMode('single');
+      setSelectedPath(preferredFilePath);
+      setReport(null);
+      setExecResult(null);
+      if (preferredScope && preferredScope !== 'autoDetect') {
+        setSelectedScope(preferredScope);
+      }
+      setStep(2);
+    }
+    onClearPreferredTarget?.();
+  }, [preferredFilePath, preferredScope, wordFiles, onClearPreferredTarget]);
+
   useEffect(() => {
     if (wordFiles.length === 0) {
       setSelectedPath('');
       setReport(null);
+      setExecResult(null);
+      setStep(1);
+      return;
+    }
+    if (preferredFilePath && wordFiles.some((f) => f.path === preferredFilePath)) {
       return;
     }
     if (!wordFiles.some((f) => f.path === selectedPath)) {
@@ -198,9 +381,11 @@ export const StandardizationWorkspace: React.FC<StandardizationWorkspaceProps> =
       setApprovedIds([]);
       setSkippedIds([]);
       setManualReviewIds([]);
+      setReport(null);
       setExecResult(null);
+      setStep(1);
     }
-  }, [wordFiles, selectedPath]);
+  }, [wordFiles, selectedPath, preferredFilePath]);
 
   const activeFile = useMemo(
     () => wordFiles.find((f) => f.path === selectedPath) ?? null,
@@ -212,117 +397,175 @@ export const StandardizationWorkspace: React.FC<StandardizationWorkspaceProps> =
     [orgProfiles, orgProfileId],
   );
 
-  const runAnalysis = useCallback(async () => {
-    if (!activeFile) return;
-    setAnalyzing(true);
-    setHighlightedPath(null);
-    try {
-      const rep = isNative
-        ? await bridge.invoke<StdAnalysisReport>('analyze_std_document', {
-            path: activeFile.path,
-            scope,
-            orgProfile: activeOrg,
-          })
-        : await analyzeWebStdDocument(activeFile, scope, activeOrg);
-      setReport(rep);
-      setApprovedIds([]);
-      setSkippedIds([]);
-      setManualReviewIds([]);
-      if (rep.requiresScopeSelection) {
-        onStatusToast('info', rep.scopeReason);
+  const runAnalysis = useCallback(
+    async (targetScope: StdDocScope, moveToStep3 = true): Promise<boolean> => {
+      if (!activeFile) {
+        onStatusToast('error', 'Vui lòng chọn tệp Word trước khi phân tích.');
+        return false;
       }
-    } catch (err) {
-      onStatusToast('error', `Lỗi phân tích tài liệu: ${(err as Error).message}`);
-    } finally {
-      setAnalyzing(false);
-    }
-  }, [activeFile, scope, activeOrg, isNative, onStatusToast]);
+      setAnalyzing(true);
+      setAnalysisError(null);
+      setHighlightedPath(null);
+      try {
+        const rep = isNative
+          ? await bridge.invoke<StdAnalysisReport>('analyze_std_document', {
+              path: activeFile.path,
+              scope: targetScope,
+              orgProfile: activeOrg,
+            })
+          : await analyzeWebStdDocument(activeFile, targetScope, activeOrg);
+        setReport(rep);
+        setApprovedIds([]);
+        setSkippedIds([]);
+        setManualReviewIds([]);
+        setExecResult(null);
+        if (rep.requiresScopeSelection) {
+          onStatusToast('info', rep.scopeReason);
+        }
+        if (moveToStep3) {
+          setStep(3);
+        }
+        return true;
+      } catch (err) {
+        const msg = `Không thể phân tích tài liệu: ${(err as Error).message}`;
+        setAnalysisError(msg);
+        onStatusToast('error', msg);
+        return false;
+      } finally {
+        setAnalyzing(false);
+      }
+    },
+    [activeFile, activeOrg, isNative, onStatusToast],
+  );
 
-  useEffect(() => {
-    if (activeFile) {
-      void runAnalysis();
-    }
-  }, [activeFile?.path, scope, orgProfileId]);
+  const handleStep1Drop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDropOver(false);
+    setDropWarning(null);
+    const dropped = e.dataTransfer?.files;
+    if (!dropped || dropped.length === 0) return;
 
-  const filteredFindings = useMemo(() => {
-    if (!report) return [];
-    return report.findings.filter((f) => {
-      if (sevFilter !== 'all' && f.severity !== sevFilter) return false;
-      if (catFilter !== 'all' && f.category !== catFilter) return false;
-      return true;
-    });
-  }, [report, sevFilter, catFilter]);
+    const arr = Array.from(dropped);
+    const invalid = arr.filter((f) => !/\.(docx|docm|doc)$/i.test(f.name));
+    if (invalid.length > 0 && invalid.length === arr.length) {
+      setDropWarning(
+        `Định dạng tệp "${invalid[0].name}" không được hỗ trợ. Vui lòng chọn tệp Word (.docx, .docm hoặc .doc).`,
+      );
+      return;
+    }
+    if (!isNative && arr.every((f) => /\.doc$/i.test(f.name))) {
+      setDropWarning(
+        'Định dạng .doc cũ cần Microsoft Word trên bản Windows Desktop. Trên trình duyệt hãy dùng tệp .docx hoặc .docm.',
+      );
+      return;
+    }
+    if (onDropWebFiles) {
+      onDropWebFiles(arr);
+    }
+  };
+
+  const handleContinueFromStep1 = () => {
+    if (!activeFile) {
+      setDropWarning('Vui lòng chọn hoặc kéo thả một tài liệu Word hợp lệ.');
+      return;
+    }
+    if (!isNative && activeFile.ext.toLowerCase() === 'doc') {
+      setDropWarning(
+        'Tệp .doc cũ cần mở trên ứng dụng Windows Desktop có Microsoft Word để chuyển đổi an toàn.',
+      );
+      return;
+    }
+    setDropWarning(null);
+    setStep(2);
+  };
+
+  const handleAnalyzeFromStep2 = async () => {
+    if (!selectedScope) {
+      onStatusToast('info', 'Vui lòng chọn một trong 4 loại văn bản trước khi tiếp tục.');
+      return;
+    }
+    await runAnalysis(selectedScope, true);
+  };
+
+  const groupedFindings = useMemo(() => {
+    const groups: Record<StdGroupKey, StdFinding[]> = {
+      formal: [],
+      format: [],
+      layout: [],
+      manual: [],
+    };
+    if (!report) return groups;
+    for (const f of report.findings) {
+      groups[classifyFindingGroup(f)].push(f);
+    }
+    return groups;
+  }, [report]);
+
+  const actionGroups = useMemo(() => {
+    const groupA: StdFinding[] = [];
+    const groupB: StdFinding[] = [];
+    const groupC: StdFinding[] = [];
+    if (!report) return { groupA, groupB, groupC };
+    for (const f of report.findings) {
+      if (!f.autoFixSupported || f.safetyTier === 'groupCManualOnly') groupC.push(f);
+      else if (f.safetyTier === 'groupBConfirm') groupB.push(f);
+      else groupA.push(f);
+    }
+    return { groupA, groupB, groupC };
+  }, [report]);
+
+  const isFindingSelectedForFix = useCallback(
+    (f: StdFinding): boolean => {
+      if (!f.autoFixSupported || f.safetyTier === 'groupCManualOnly') return false;
+      if (skippedIds.includes(f.findingId) || manualReviewIds.includes(f.findingId)) return false;
+      if (f.safetyTier === 'groupAAuto') {
+        return applyAllGroupA || approvedIds.includes(f.findingId);
+      }
+      return approvedIds.includes(f.findingId);
+    },
+    [applyAllGroupA, approvedIds, skippedIds, manualReviewIds],
+  );
 
   const previewFixCount = useMemo(() => {
     if (!report) return 0;
-    const sk = new Set(skippedIds);
-    const man = new Set(manualReviewIds);
-    const app = new Set(approvedIds);
-    return report.findings.filter((f) => {
-      if (!f.autoFixSupported || sk.has(f.findingId) || man.has(f.findingId)) return false;
-      if (f.safetyTier === 'groupAAuto') return applyAllGroupA || app.has(f.findingId);
-      if (f.safetyTier === 'groupBConfirm') return app.has(f.findingId);
-      return false;
-    }).length;
-  }, [report, applyAllGroupA, approvedIds, skippedIds, manualReviewIds]);
+    return report.findings.filter((f) => isFindingSelectedForFix(f)).length;
+  }, [report, isFindingSelectedForFix]);
 
-  const toggleApproved = (id: string) => {
-    setSkippedIds((prev) => prev.filter((x) => x !== id));
-    setManualReviewIds((prev) => prev.filter((x) => x !== id));
-    setApprovedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
-  };
-
-  const toggleSkipped = (id: string) => {
-    setApprovedIds((prev) => prev.filter((x) => x !== id));
-    setSkippedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
-  };
-
-  const toggleManualReview = (id: string) => {
-    setApprovedIds((prev) => prev.filter((x) => x !== id));
-    setManualReviewIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
-  };
-
-  const jumpToLocation = (elementPath: string) => {
-    setHighlightedPath(elementPath);
-    inspectorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  };
-
-  const runExecute = async (singleFinding?: StdFinding) => {
-    if (!activeFile) {
-      onStatusToast('error', 'Vui lòng chọn tệp tài liệu trước.');
+  const toggleFindingFixSelection = (f: StdFinding) => {
+    if (!f.autoFixSupported || f.safetyTier === 'groupCManualOnly') return;
+    if (f.safetyTier === 'groupAAuto' && applyAllGroupA) {
+      setSkippedIds((prev) =>
+        prev.includes(f.findingId) ? prev.filter((x) => x !== f.findingId) : [...prev, f.findingId],
+      );
       return;
     }
-    const req: StdExecutionRequest = singleFinding
-      ? {
-          path: activeFile.path,
-          scope,
-          orgProfile: activeOrg,
-          outputMode,
-          applyAllGroupA: false,
-          approvedFindingIds: [singleFinding.findingId],
-          skippedFindingIds: [],
-          manualReviewFindingIds: [],
-          disabledRuleIds: [],
-        }
-      : {
-          path: activeFile.path,
-          scope,
-          orgProfile: activeOrg,
-          outputMode,
-          applyAllGroupA,
-          approvedFindingIds: approvedIds,
-          skippedFindingIds: skippedIds,
-          manualReviewFindingIds: manualReviewIds,
-          disabledRuleIds: [],
-        };
+    setSkippedIds((prev) => prev.filter((x) => x !== f.findingId));
+    setApprovedIds((prev) =>
+      prev.includes(f.findingId) ? prev.filter((x) => x !== f.findingId) : [...prev, f.findingId],
+    );
+  };
 
+  const runExecute = async () => {
+    if (executing) return;
+    if (!activeFile || !selectedScope) {
+      onStatusToast('error', 'Vui lòng chọn tệp tài liệu và loại văn bản trước.');
+      return;
+    }
     setExecuting(true);
+    setExecError(null);
+    const req: StdExecutionRequest = {
+      path: activeFile.path,
+      scope: selectedScope,
+      orgProfile: activeOrg,
+      outputMode,
+      applyAllGroupA,
+      approvedFindingIds: approvedIds,
+      skippedFindingIds: skippedIds,
+      manualReviewFindingIds: manualReviewIds,
+      disabledRuleIds: [],
+    };
+
     try {
       const res = isNative
         ? await bridge.invoke<StdExecutionResult>('execute_std_document', req)
@@ -336,22 +579,37 @@ export const StandardizationWorkspace: React.FC<StandardizationWorkspaceProps> =
         setReport(res.reportAfter);
       }
 
-      if (res.success) {
-        if (!isNative && res.outputBlob && onReplaceWebFile) {
+      const verifiedOk =
+        res.success && (!res.verification || res.verification.xmlValid);
+
+      if (verifiedOk) {
+        if (!isNative && res.outputBlob && outputMode === 'overwriteWithBackup' && onReplaceWebFile) {
           const updated = new File([res.outputBlob], activeFile.name, {
             type: res.outputBlob.type,
           });
           onReplaceWebFile(activeFile.path, updated);
         }
+        onSingleExecComplete?.(activeFile, res);
+        setSaveAsName(sanitizeOutputBaseName(activeFile.name));
+        setSaveAsOpen(false);
+        setStep(5);
         onStatusToast(
           'success',
-          `Đã chuẩn hóa & xác minh lại tệp (${res.actionsApplied.length} thay đổi, bảo toàn 100%).`,
+          `Đã chuẩn hóa và xác minh tệp đầu ra thành công (${res.actionsApplied.length} thay đổi).`,
         );
       } else {
-        onStatusToast('error', res.error || 'Chuẩn hóa không hoàn tất.');
+        const errMsg =
+          res.error ||
+          (!res.verification?.xmlValid
+            ? 'Tệp sau chuẩn hóa chưa đạt kiểm tra cấu trúc. Đã giữ nguyên tệp gốc.'
+            : 'Chuẩn hóa không hoàn tất.');
+        setExecError(errMsg);
+        onStatusToast('error', errMsg);
       }
     } catch (err) {
-      onStatusToast('error', `Lỗi chuẩn hóa: ${(err as Error).message}`);
+      const errMsg = `Lỗi chuẩn hóa: ${(err as Error).message}`;
+      setExecError(errMsg);
+      onStatusToast('error', errMsg);
     } finally {
       setExecuting(false);
     }
@@ -371,7 +629,9 @@ export const StandardizationWorkspace: React.FC<StandardizationWorkspaceProps> =
           backupPath: bak,
         });
         onStatusToast('info', out.message);
-        await runAnalysis();
+        if (selectedScope) {
+          await runAnalysis(selectedScope, false);
+        }
       } else {
         const snap = getWebStdSnapshot(activeFile.path);
         if (!snap || !onReplaceWebFile) {
@@ -379,15 +639,18 @@ export const StandardizationWorkspace: React.FC<StandardizationWorkspaceProps> =
           return;
         }
         onReplaceWebFile(activeFile.path, snap);
-        const restoredRep = await analyzeWebStdDocument(
-          { ...activeFile, webFile: snap },
-          scope,
-          activeOrg,
-        );
-        setReport(restoredRep);
+        if (selectedScope) {
+          const restoredRep = await analyzeWebStdDocument(
+            { ...activeFile, webFile: snap },
+            selectedScope,
+            activeOrg,
+          );
+          setReport(restoredRep);
+        }
         onStatusToast('info', `Đã hoàn tác về bản gốc "${activeFile.name}".`);
       }
       setExecResult(null);
+      setStep(4);
     } catch (err) {
       onStatusToast('error', `Lỗi hoàn tác: ${(err as Error).message}`);
     }
@@ -404,519 +667,1007 @@ export const StandardizationWorkspace: React.FC<StandardizationWorkspaceProps> =
       (backupByPath[activeFile.path] || (!isNative && getWebStdSnapshot(activeFile.path))),
   );
 
+  const canJumpToStep = (targetStep: WizardStep): boolean => {
+    if (targetStep === step) return true;
+    if (targetStep < step) return true;
+    if (targetStep === 2) return Boolean(activeFile);
+    if (targetStep === 3) return Boolean(activeFile && selectedScope && report);
+    if (targetStep === 4) return Boolean(activeFile && selectedScope && report);
+    if (targetStep === 5) return Boolean(execResult?.success);
+    return false;
+  };
+
+  const verifiedOutputName =
+    execResult?.outputName ||
+    execResult?.outputPath.split(/[/\\]/).pop() ||
+    (activeFile ? sanitizeOutputBaseName(activeFile.name).replace('_ban_khac', '') : '');
+
   return (
-    <div className="space-y-4">
-      {/* BƯỚC 1-3: CHỌN TỆP, PHẠM VI & PHÂN TÍCH */}
-      <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="text-sm sm:text-base font-bold flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-blue-600" />
-              Bộ máy Phân tích &amp; Chuẩn hóa Thể thức (Phase 3)
-            </h2>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-              Phân tích 8 nhóm quy tắc NĐ 30/2020/NĐ-CP · Sửa theo 3 cấp an toàn A/B/C · So sánh Diff &amp; Kiểm tra lại sau lưu.
-            </p>
-          </div>
-          {wordFiles.length === 0 && (
-            <button
-              type="button"
-              onClick={onPickFiles}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 cursor-pointer"
-            >
-              <FolderOpen className="w-3.5 h-3.5" />
-              Chọn tệp Word
-            </button>
-          )}
+    <div className="mx-auto max-w-5xl space-y-4">
+      {/* Header + Mode Switch */}
+      <div className="mw-panel flex flex-wrap items-center justify-between gap-3 p-4">
+        <div className="min-w-0">
+          <h2 className="text-base font-bold flex items-center gap-2 text-[var(--mw-ink)]">
+            <ShieldCheck className="w-4 h-4 text-[var(--mw-accent)] shrink-0" />
+            Chuẩn hóa văn bản
+          </h2>
+          <p className="text-xs text-[var(--mw-muted)] mt-0.5">
+            {mode === 'single'
+              ? 'Thực hiện theo 5 bước rõ ràng để kiểm tra, xác nhận và lưu tệp văn bản hoàn chỉnh.'
+              : 'Áp dụng đồng loạt quy chuẩn cho nhiều tài liệu Word hoặc cả thư mục.'}
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
-          <label className="block">
-            <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-              Bước 1: Tài liệu Word
-            </span>
-            <select
-              value={selectedPath}
-              onChange={(e) => setSelectedPath(e.target.value)}
-              className="mt-1 w-full px-2.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-medium"
-            >
-              {wordFiles.length === 0 && <option value="">-- Chưa có tệp trong hàng đợi --</option>}
-              {wordFiles.map((f) => (
-                <option key={f.path} value={f.path}>
-                  {f.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block">
-            <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-              Bước 2: Phạm vi áp dụng quy tắc
-            </span>
-            <select
-              value={scope}
-              onChange={(e) => setScope(e.target.value as StdDocScope)}
-              className="mt-1 w-full px-2.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 font-medium"
-            >
-              {SCOPE_OPTIONS.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block">
-            <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-              Hồ sơ Tổ chức (Phase 1)
-            </span>
-            <select
-              value={orgProfileId}
-              onChange={(e) => setOrgProfileId(e.target.value)}
-              className="mt-1 w-full px-2.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950"
-            >
-              <option value="">-- Không áp hồ sơ riêng --</option>
-              {orgProfiles.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.profileName} ({o.sector})
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block">
-            <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-              Chế độ ghi kết quả
-            </span>
-            <select
-              value={outputMode}
-              onChange={(e) => setOutputMode(e.target.value as OutputMode)}
-              className="mt-1 w-full px-2.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950"
-            >
-              <option value="newCopy">Bản sao mới (_ChuanTheThuc)</option>
-              <option value="overwriteWithBackup">Ghi đè (tự sao lưu .bak để hoàn tác)</option>
-            </select>
-          </label>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+        <div
+          role="group"
+          aria-label="Chế độ chuẩn hóa"
+          className="inline-flex items-center rounded-lg border border-[var(--mw-border)] bg-[var(--mw-canvas)] p-0.5 text-xs"
+        >
           <button
             type="button"
-            disabled={!activeFile || analyzing}
-            onClick={() => void runAnalysis()}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:opacity-90 disabled:opacity-45 cursor-pointer"
+            onClick={() => setMode('single')}
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 font-semibold transition-colors ${
+              mode === 'single'
+                ? 'bg-[var(--mw-surface)] text-[var(--mw-ink)] shadow-sm'
+                : 'text-[var(--mw-muted)] hover:text-[var(--mw-ink)]'
+            }`}
           >
-            <FileSearch className="w-4 h-4" />
-            {analyzing ? 'Đang phân tích cấu trúc OpenXML...' : 'Bước 3: Phân tích tài liệu'}
+            <FileText className="size-3.5" aria-hidden="true" />
+            Một tài liệu
           </button>
-
-          {report && (
-            <div className="text-[11px] text-slate-600 dark:text-slate-300">
-              Phạm vi hiệu lực:{' '}
-              <strong className="text-blue-600 dark:text-blue-400">
-                {SCOPE_OPTIONS.find((o) => o.id === report.effectiveScope)?.label ||
-                  'Chưa xác định (chọn thủ công)'}
-              </strong>{' '}
-              — {report.scopeReason}
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={() => setMode('batch')}
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 font-semibold transition-colors ${
+              mode === 'batch'
+                ? 'bg-[var(--mw-surface)] text-[var(--mw-ink)] shadow-sm'
+                : 'text-[var(--mw-muted)] hover:text-[var(--mw-ink)]'
+            }`}
+          >
+            <Files className="size-3.5" aria-hidden="true" />
+            Nhiều tài liệu
+          </button>
         </div>
+      </div>
 
-        {report?.requiresScopeSelection && (
-          <div className="p-3 rounded-xl border border-violet-300 bg-violet-50/70 dark:border-violet-800 dark:bg-violet-950/30 text-xs flex items-start gap-2">
-            <HelpCircle className="w-4 h-4 text-violet-600 shrink-0 mt-0.5" />
-            <div>
-              <strong>Không thể tự suy đoán phạm vi áp dụng:</strong> {report.scopeReason} Hãy chọn loại tài liệu phù hợp ở mục <em>Bước 2</em> rồi bấm <em>Phân tích tài liệu</em>.
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* BƯỚC 4: BÁO CÁO PHÂN TÍCH ĐỊNH LƯỢNG THỰC TẾ (KHÔNG DÙNG ĐIỂM PHẦN TRĂM CẢM TÍNH) */}
-      {report && (
-        <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-bold flex items-center gap-2">
-              <Layers className="w-4 h-4 text-blue-600" />
-              Bước 4: Kết quả kiểm tra quy tắc &amp; Kiểm kê tài sản bảo toàn
-            </h3>
-            <span className="text-[11px] text-slate-500">
-              {report.paragraphCount} đoạn · {report.tables.length} bảng · {report.sections.length} section
-            </span>
-          </div>
-
-          {/* Trạng thái quy tắc */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
-            <div className="p-2 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/60 dark:bg-emerald-950/20">
-              <div className="text-base font-extrabold text-emerald-700 dark:text-emerald-300">
-                {report.statusCounts.passed}
-              </div>
-              <div className="text-[10px] font-semibold text-emerald-700/80 dark:text-emerald-300/80">
-                Quy tắc Đạt
-              </div>
-            </div>
-            <div className="p-2 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/60 dark:bg-rose-950/20">
-              <div className="text-base font-extrabold text-rose-700 dark:text-rose-300">
-                {report.statusCounts.failed}
-              </div>
-              <div className="text-[10px] font-semibold text-rose-700/80 dark:text-rose-300/80">
-                Không đạt
-              </div>
-            </div>
-            <div className="p-2 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/60 dark:bg-amber-950/20">
-              <div className="text-base font-extrabold text-amber-700 dark:text-amber-300">
-                {report.statusCounts.needsReview}
-              </div>
-              <div className="text-[10px] font-semibold text-amber-700/80 dark:text-amber-300/80">
-                Cần kiểm tra
-              </div>
-            </div>
-            <div className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40">
-              <div className="text-base font-extrabold text-slate-600 dark:text-slate-300">
-                {report.statusCounts.notApplicable}
-              </div>
-              <div className="text-[10px] font-semibold text-slate-500">Không áp dụng</div>
-            </div>
-            <div className="p-2 rounded-xl border border-violet-200 dark:border-violet-900/60 bg-violet-50/50 dark:bg-violet-950/20">
-              <div className="text-base font-extrabold text-violet-700 dark:text-violet-300">
-                {report.statusCounts.indeterminate}
-              </div>
-              <div className="text-[10px] font-semibold text-violet-700/80 dark:text-violet-300/80">
-                Không xác định
-              </div>
-            </div>
-          </div>
-
-          {/* Kiểm kê bảo toàn đối tượng */}
-          <div className="flex flex-wrap gap-1.5 text-[11px]">
-            <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800">
-              Ảnh/Logo: <strong>{report.assets.drawingCount}</strong> ({report.assets.mediaCount} media)
-            </span>
-            <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800">
-              Hyperlink: <strong>{report.assets.hyperlinkCount}</strong>
-            </span>
-            <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800">
-              Bookmark: <strong>{report.assets.bookmarkCount}</strong>
-            </span>
-            <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800">
-              Footnote/Endnote: <strong>{report.assets.footnoteCount}/{report.assets.endnoteCount}</strong>
-            </span>
-            <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800">
-              Comment: <strong>{report.assets.commentCount}</strong>
-            </span>
-            <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800">
-              Field tự động: <strong>{report.assets.fieldCount}</strong>
-            </span>
-            {report.assets.hasVbaMacros && (
-              <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 font-semibold">
-                Có Macro VBA (.docm) — Được bảo toàn
-              </span>
-            )}
-          </div>
-
-          {/* Bộ lọc lỗi & thanh chọn thao tác */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200 dark:border-slate-800 text-xs">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1 font-semibold text-slate-500">
-                <Filter className="w-3.5 h-3.5" /> Lọc:
-              </span>
+      {mode === 'batch' ? (
+        <section className="mw-panel p-4 sm:p-5 space-y-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 text-xs">
+            <label className="block space-y-1">
+              <span className="font-semibold text-[var(--mw-muted)]">Loại quy chuẩn áp dụng</span>
               <select
-                value={sevFilter}
-                onChange={(e) => setSevFilter(e.target.value as 'all' | StdSeverity)}
-                className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-[11px]"
+                value={activePreset}
+                onChange={(e) => onSelectPreset?.(e.target.value as PresetId)}
+                className="w-full rounded-lg border border-[var(--mw-border)] bg-[var(--mw-surface)] px-3 py-2 text-xs font-medium"
               >
-                <option value="all">Tất cả mức độ ({report.findings.length})</option>
-                <option value="critical">Nghiêm trọng ({report.severityCounts.critical})</option>
-                <option value="error">Lỗi cần sửa ({report.severityCounts.error})</option>
-                <option value="warning">Cảnh báo ({report.severityCounts.warning})</option>
-                <option value="information">Đề xuất ({report.severityCounts.information})</option>
+                {presets.length === 0 ? (
+                  <option value="nd30">Văn bản hành chính (NĐ 30/2020/NĐ-CP)</option>
+                ) : (
+                  presets.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))
+                )}
               </select>
+            </label>
 
+            <label className="block space-y-1">
+              <span className="font-semibold text-[var(--mw-muted)]">Cách lưu kết quả</span>
               <select
-                value={catFilter}
-                onChange={(e) => setCatFilter(e.target.value as 'all' | RuleCategory)}
-                className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-[11px]"
+                value={outputModeConfig}
+                onChange={(e) => onChangeOutputModeConfig?.(e.target.value as OutputMode)}
+                className="w-full rounded-lg border border-[var(--mw-border)] bg-[var(--mw-surface)] px-3 py-2 text-xs font-medium"
               >
-                <option value="all">Tất cả nhóm quy tắc</option>
-                {Object.entries(CATEGORY_LABELS).map(([k, lbl]) => (
-                  <option key={k} value={k}>
-                    {lbl}
-                  </option>
-                ))}
+                <option value="newCopy">Lưu thành tệp mới (_chuanhoa)</option>
+                <option value="overwriteWithBackup">Ghi đè tệp gốc (có sao lưu an toàn)</option>
               </select>
-            </div>
-
-            <label className="inline-flex items-center gap-1.5 text-[11px] font-semibold cursor-pointer">
-              <input
-                type="checkbox"
-                checked={applyAllGroupA}
-                onChange={(e) => setApplyAllGroupA(e.target.checked)}
-              />
-              Tự động sửa toàn bộ Nhóm A an toàn
             </label>
           </div>
 
-          {/* Danh sách lỗi chi tiết */}
-          <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
-            {filteredFindings.length === 0 ? (
-              <div className="p-4 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900 text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 shrink-0" />
-                Không có lỗi nào thuộc bộ lọc hiện tại.
-              </div>
-            ) : (
-              filteredFindings.map((f) => {
-                const isSkipped = skippedIds.includes(f.findingId);
-                const isManual = manualReviewIds.includes(f.findingId);
-                const isChecked =
-                  f.autoFixSupported &&
-                  !isSkipped &&
-                  !isManual &&
-                  ((f.safetyTier === 'groupAAuto' && applyAllGroupA) ||
-                    approvedIds.includes(f.findingId));
-
-                return (
-                  <div
-                    key={f.findingId}
-                    className={`p-3 rounded-xl border text-xs space-y-1.5 transition-colors ${
-                      isSkipped
-                        ? 'opacity-55 border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-950/20'
-                        : 'border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950/40'
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-1.5">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {f.autoFixSupported && (
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => toggleApproved(f.findingId)}
-                            title={
-                              f.safetyTier === 'groupBConfirm'
-                                ? 'Bắt buộc tích xác nhận để sửa Nhóm B'
-                                : 'Chọn sửa lỗi này'
-                            }
-                          />
-                        )}
-                        <span className="font-mono font-bold text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800">
-                          {f.ruleId}
-                        </span>
-                        <span
-                          className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${SEVERITY_META[f.severity].cls}`}
-                        >
-                          {SEVERITY_META[f.severity].icon}
-                          {SEVERITY_META[f.severity].label}
-                        </span>
-                        <span
-                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${TIER_META[f.safetyTier].cls}`}
-                        >
-                          {TIER_META[f.safetyTier].label}
-                        </span>
-                        <span className="font-bold text-slate-900 dark:text-slate-100">
-                          {f.ruleName}
-                        </span>
-                      </div>
-                      <span className="text-[10px] font-mono text-slate-500">{f.location}</span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] bg-white/80 dark:bg-slate-900/70 p-2 rounded-lg border border-slate-200/70 dark:border-slate-800">
-                      <div>
-                        <span className="text-slate-500 font-semibold">Hiện tại: </span>
-                        <span className="text-rose-700 dark:text-rose-300">{f.currentValue}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 font-semibold">Yêu cầu: </span>
-                        <span className="text-emerald-700 dark:text-emerald-300">
-                          {f.expectedValue}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="text-[11px] text-slate-700 dark:text-slate-300">
-                      <strong>Đề xuất:</strong> {f.proposal}{' '}
-                      <span className="text-slate-500">({f.legalBasis})</span>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-[11px]">
-                      <button
-                        type="button"
-                        onClick={() => jumpToLocation(f.elementPath)}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-                      >
-                        <MapPin className="w-3 h-3 text-blue-600" />
-                        Chuyển đến vị trí
-                      </button>
-
-                      {onInspectInPreview && activeFile && (
-                        <button
-                          type="button"
-                          onClick={() => onInspectInPreview(activeFile.path, f.elementPath)}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/70 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 cursor-pointer font-semibold"
-                        >
-                          <Eye className="w-3 h-3" />
-                          Xem trên A4
-                        </button>
-                      )}
-
-                      {f.autoFixSupported && f.safetyTier !== 'groupCManualOnly' && (
-                        <button
-                          type="button"
-                          disabled={executing}
-                          onClick={() => void runExecute(f)}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-semibold cursor-pointer disabled:opacity-45"
-                        >
-                          <Wrench className="w-3 h-3" />
-                          Sửa lỗi này
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() => toggleSkipped(f.findingId)}
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg border cursor-pointer ${
-                          isSkipped
-                            ? 'border-slate-400 bg-slate-200 dark:bg-slate-700 font-semibold'
-                            : 'border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
-                        }`}
-                      >
-                        <SkipForward className="w-3 h-3" />
-                        {isSkipped ? 'Đã bỏ qua' : 'Bỏ qua'}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => toggleManualReview(f.findingId)}
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg border cursor-pointer ${
-                          isManual
-                            ? 'border-violet-400 bg-violet-100 text-violet-800 dark:bg-violet-900/50 dark:text-violet-200 font-semibold'
-                            : 'border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
-                        }`}
-                      >
-                        <Flag className="w-3 h-3" />
-                        {isManual ? 'Cần kiểm tra thủ công' : 'Đánh dấu kiểm tra'}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          {/* Trình soi vị trí cấu trúc tài liệu */}
-          <div
-            ref={inspectorRef}
-            className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/50 p-3 space-y-2"
-          >
-            <div className="flex items-center justify-between text-xs font-bold">
-              <span className="flex items-center gap-1.5">
-                <Eye className="w-3.5 h-3.5 text-blue-600" />
-                Vị trí trong tài liệu gốc ({report.paragraphPreviews.length}/{report.paragraphCount} đoạn trích)
-              </span>
-              {highlightedPath && (
-                <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300">
-                  Đang trỏ: {highlightedPath}
-                </span>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--mw-border)] pt-3">
+            <div className="text-xs font-semibold text-[var(--mw-ink)]">
+              Danh sách tài liệu ({files.length})
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={onPickFiles}
+                className="mw-button mw-button-secondary text-xs"
+              >
+                <FolderOpen className="size-3.5" aria-hidden="true" />
+                Chọn thêm tài liệu
+              </button>
+              {onPickFolder && (
+                <button
+                  type="button"
+                  onClick={onPickFolder}
+                  className="mw-button mw-button-secondary text-xs"
+                >
+                  <FolderPlus className="size-3.5" aria-hidden="true" />
+                  Chọn thư mục
+                </button>
+              )}
+              {files.length > 0 && onClearFiles && (
+                <button
+                  type="button"
+                  onClick={onClearFiles}
+                  className="mw-button mw-button-secondary text-xs text-rose-600"
+                >
+                  <Trash2 className="size-3.5" aria-hidden="true" />
+                  Xóa danh sách
+                </button>
               )}
             </div>
-            <div className="max-h-44 overflow-y-auto space-y-1 text-[11px]">
-              {report.paragraphPreviews.map((p) => {
-                const isHit = highlightedPath === p.elementPath;
+          </div>
+
+          {files.length === 0 ? (
+            <div className="mw-empty p-6 text-center text-xs text-[var(--mw-muted)] space-y-2">
+              <p>
+                Chưa có tài liệu nào được chọn. Bấm &quot;Chọn thêm tài liệu&quot; hoặc &quot;Chọn
+                thư mục&quot; để thêm nhiều tệp cùng lúc.
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-[var(--mw-border)] rounded-lg border border-[var(--mw-border)] max-h-72 overflow-y-auto">
+              {files.map((item) => {
+                const res = batchResults[item.path];
                 return (
                   <div
-                    key={p.elementPath}
-                    className={`p-1.5 rounded-lg border flex items-start justify-between gap-2 ${
-                      isHit
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/60 ring-1 ring-blue-500'
-                        : 'border-slate-200/70 dark:border-slate-800 bg-white/70 dark:bg-slate-900/40'
-                    }`}
+                    key={item.path}
+                    className="flex flex-wrap items-center justify-between gap-2 p-3 text-xs"
                   >
-                    <div className="min-w-0">
-                      <span className="font-mono text-[10px] text-slate-500 mr-1.5">
-                        #{p.index + 1} [{p.role}]
-                      </span>
-                      <span className="text-slate-800 dark:text-slate-200 break-words">
-                        {p.excerpt || '(Đoạn trống)'}
-                      </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-[var(--mw-ink)] truncate">{item.name}</div>
+                      {res ? (
+                        <div
+                          className={`text-[11px] ${
+                            res.success
+                              ? 'text-emerald-700 dark:text-emerald-300'
+                              : 'text-rose-600'
+                          }`}
+                        >
+                          {res.success ? res.statsSummary : res.error || 'Có lỗi khi xử lý'}
+                        </div>
+                      ) : (
+                        <div className="text-[11px] text-[var(--mw-muted)]">Chờ xử lý</div>
+                      )}
                     </div>
-                    <div className="shrink-0 text-[10px] font-mono text-slate-500 text-right">
-                      {p.fontName || '?'} · {p.fontSizePt ?? '?'}pt · {p.alignment}
+
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {res?.success && res.blobUrl && onDownloadOutput && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onDownloadOutput(res.blobUrl!, res.outputName || res.outputPath)
+                          }
+                          className="mw-button mw-button-secondary text-xs"
+                        >
+                          <Download className="size-3" aria-hidden="true" />
+                          Tải về
+                        </button>
+                      )}
+                      {res?.success && !item.path.startsWith('web://') && onOpenOutput && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenOutput(res.outputPath, false)}
+                          className="mw-button mw-button-secondary text-xs"
+                        >
+                          Mở kết quả
+                        </button>
+                      )}
+                      {res?.backupPath && !item.path.startsWith('web://') && onRestoreBackup && (
+                        <button
+                          type="button"
+                          onClick={() => onRestoreBackup(item.path, res.backupPath!)}
+                          className="mw-button mw-button-secondary text-xs"
+                        >
+                          <RotateCcw className="size-3" aria-hidden="true" />
+                          Khôi phục
+                        </button>
+                      )}
+                      {onRemoveFile && (
+                        <button
+                          type="button"
+                          onClick={() => onRemoveFile(item.path)}
+                          className="p-1 text-slate-400 hover:text-rose-600"
+                          title="Xóa khỏi danh sách"
+                        >
+                          <Trash2 className="size-3.5" aria-hidden="true" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
               })}
             </div>
-          </div>
+          )}
 
-          {/* BƯỚC 6-7: XEM TRƯỚC THAY ĐỔI & THỰC THI */}
-          <div className="p-3 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/60 dark:bg-blue-950/20 flex flex-wrap items-center justify-between gap-2 text-xs">
-            <div>
-              <strong>Bước 6 · Xem trước kế hoạch sửa:</strong> Sẽ áp dụng{' '}
-              <strong className="text-blue-700 dark:text-blue-300">{previewFixCount}</strong> sửa đổi
-              (Nhóm A + Nhóm B đã xác nhận); giữ nguyên toàn bộ Nhóm C (Số VB, Ngày, Chữ ký, Nội dung pháp lý).
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                disabled={executing || (report.requiresScopeSelection && scope === 'autoDetect')}
-                onClick={() => void runExecute()}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-45 cursor-pointer"
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+            {batchBusy && batchProgress ? (
+              <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600">
+                <RefreshCw className="size-3.5 animate-spin" aria-hidden="true" />
+                Đang xử lý {batchProgress.current}/{batchProgress.total}...
+              </div>
+            ) : (
+              <span className="text-xs text-[var(--mw-muted)]">
+                Chỉ giữ nguyên nội dung gốc, tự động đồng bộ phông chữ, cỡ chữ và căn lề.
+              </span>
+            )}
+            <button
+              type="button"
+              disabled={batchBusy || files.length === 0 || !onBatchProcess}
+              onClick={onBatchProcess}
+              className="mw-button mw-button-primary"
+            >
+              <Play className="size-3.5 fill-current" aria-hidden="true" />
+              Chuẩn hóa tất cả ({files.length})
+            </button>
+          </div>
+        </section>
+      ) : (
+        <>
+          {/* Thanh tiến trình 5 bước */}
+          <nav aria-label="Tiến trình 5 bước chuẩn hóa" className="mw-panel p-3">
+            <ol className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              {WIZARD_STEPS.map((s) => {
+                const isCurrent = step === s.id;
+                const isDone = step > s.id;
+                const reachable = canJumpToStep(s.id);
+                return (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      disabled={!reachable}
+                      onClick={() => {
+                        if (reachable) setStep(s.id);
+                      }}
+                      aria-current={isCurrent ? 'step' : undefined}
+                      className={`w-full flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-xs transition-colors ${
+                        isCurrent
+                          ? 'border-[var(--mw-accent)] bg-[var(--mw-tint)] text-[var(--mw-ink)] font-bold'
+                          : isDone
+                            ? 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-300 font-semibold'
+                            : 'border-[var(--mw-border)] text-[var(--mw-muted)] opacity-65'
+                      } disabled:cursor-not-allowed`}
+                    >
+                      <span
+                        className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
+                          isCurrent
+                            ? 'bg-[var(--mw-accent)] text-[var(--mw-accent-ink)]'
+                            : isDone
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                        }`}
+                      >
+                        {isDone ? '✓' : s.id}
+                      </span>
+                      <span className="truncate">{s.label}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </nav>
+
+          {/* BƯỚC 1 – CHỌN TÀI LIỆU */}
+          {step === 1 && (
+            <section className="mw-panel p-5 sm:p-6 space-y-4">
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-[var(--mw-ink)]">
+                  Bước 1: Chọn tài liệu Word cần chuẩn hóa
+                </h3>
+                <p className="text-xs text-[var(--mw-muted)]">
+                  Hỗ trợ các định dạng tài liệu Word phổ biến: <strong>DOCX, DOCM, DOC</strong>. Hệ thống chỉ kiểm tra sau khi bạn xác nhận ở bước tiếp theo.
+                </p>
+              </div>
+
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDropOver(true);
+                }}
+                onDragLeave={() => setIsDropOver(false)}
+                onDrop={handleStep1Drop}
+                className={`mw-empty flex flex-col items-center justify-center gap-3 px-6 py-8 text-center transition-colors ${
+                  isDropOver ? 'border-[var(--mw-focus)] bg-[var(--mw-tint)]' : ''
+                }`}
               >
-                <Play className="w-4 h-4" />
-                {executing ? 'Đang chuẩn hóa & xác minh...' : 'Bước 7: Thực hiện chuẩn hóa'}
-              </button>
-              {canRestore && (
+                <Upload className="size-8 text-[var(--mw-accent)]" aria-hidden="true" />
+                <div className="space-y-1">
+                  <div className="text-sm font-bold text-[var(--mw-ink)]">
+                    Kéo thả tài liệu Word vào đây
+                  </div>
+                  <p className="text-xs text-[var(--mw-muted)]">
+                    Hoặc chọn trực tiếp tệp từ máy tính ({isNative ? 'DOCX, DOCM, DOC' : 'DOCX, DOCM'})
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <button type="button" onClick={onPickFiles} className="mw-button mw-button-secondary">
+                    <FolderOpen className="size-4" aria-hidden="true" />
+                    Chọn tài liệu
+                  </button>
+                  {onPickFolder && (
+                    <button
+                      type="button"
+                      onClick={onPickFolder}
+                      className="mw-button mw-button-secondary"
+                    >
+                      <FolderPlus className="size-4" aria-hidden="true" />
+                      Chọn thư mục
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {dropWarning && (
+                <div role="alert" className="mw-toast mw-toast-err text-xs">
+                  <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
+                  <span>{dropWarning}</span>
+                </div>
+              )}
+
+              {activeFile && (
+                <div className="rounded-xl border border-[var(--mw-border)] bg-[var(--mw-canvas)] p-4 space-y-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <FileText className="size-5 shrink-0 text-[var(--mw-accent)] mt-0.5" aria-hidden="true" />
+                      <div className="min-w-0 space-y-1">
+                        <div className="text-sm font-bold text-[var(--mw-ink)] break-all">
+                          {activeFile.name}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--mw-muted)]">
+                          <span>Dung lượng: <strong>{formatBytes(activeFile.sizeBytes)}</strong></span>
+                          <span>Định dạng: <strong>{activeFile.ext.toUpperCase()}</strong></span>
+                          <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-300 font-semibold">
+                            <CheckCircle2 className="size-3.5" aria-hidden="true" />
+                            Đã tải sẵn sàng
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={onPickFiles}
+                        className="mw-button mw-button-secondary text-xs"
+                      >
+                        Thay thế tệp khác
+                      </button>
+                      {onRemoveFile && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onRemoveFile(activeFile.path);
+                            setReport(null);
+                            setExecResult(null);
+                          }}
+                          className="mw-button mw-button-danger text-xs"
+                        >
+                          Loại bỏ tệp
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {wordFiles.length > 1 && (
+                    <label className="block text-xs space-y-1 pt-2 border-t border-[var(--mw-border)]">
+                      <span className="font-semibold text-[var(--mw-muted)]">
+                        Đang có {wordFiles.length} tệp Word — chọn tệp cần xử lý:
+                      </span>
+                      <select
+                        value={selectedPath}
+                        onChange={(e) => {
+                          setSelectedPath(e.target.value);
+                          setReport(null);
+                          setExecResult(null);
+                        }}
+                        className="w-full rounded-lg border border-[var(--mw-border)] bg-[var(--mw-surface)] px-3 py-1.5 text-xs"
+                      >
+                        {wordFiles.map((f) => (
+                          <option key={f.path} value={f.path}>
+                            {f.name} ({formatBytes(f.sizeBytes)})
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--mw-border)]">
+                <button
+                  type="button"
+                  disabled={!activeFile}
+                  onClick={handleContinueFromStep1}
+                  className="mw-button mw-button-primary px-5 py-2 text-sm"
+                >
+                  Tiếp tục
+                  <ArrowRight className="size-4" aria-hidden="true" />
+                </button>
+              </div>
+            </section>
+          )}
+
+          {/* BƯỚC 2 – CHỌN LOẠI VĂN BẢN */}
+          {step === 2 && (
+            <section className="mw-panel p-5 sm:p-6 space-y-4">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="space-y-1">
+                  <h3 className="text-base font-bold text-[var(--mw-ink)]">
+                    Bước 2: Chọn loại văn bản cần chuẩn hóa
+                  </h3>
+                  <p className="text-xs text-[var(--mw-muted)]">
+                    Chọn đúng loại văn bản cho <strong>{activeFile?.name}</strong> để hệ thống áp dụng đúng quy chuẩn tương ứng.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {DOC_TYPE_CARDS.map((card) => {
+                  const chosen = selectedScope === card.id;
+                  return (
+                    <button
+                      key={card.id}
+                      type="button"
+                      aria-pressed={chosen}
+                      onClick={() => {
+                        setSelectedScope(card.id);
+                        setAnalysisError(null);
+                      }}
+                      className={`text-left rounded-xl border p-4 space-y-1.5 transition-colors ${
+                        chosen
+                          ? 'border-[var(--mw-accent)] bg-[var(--mw-tint)] ring-1 ring-[var(--mw-focus)]'
+                          : 'border-[var(--mw-border)] bg-[var(--mw-surface)] hover:border-[var(--mw-focus)]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-bold text-[var(--mw-ink)]">{card.title}</span>
+                        {chosen && (
+                          <CheckCircle2 className="size-4 text-[var(--mw-accent)] shrink-0" aria-hidden="true" />
+                        )}
+                      </div>
+                      <p className="text-xs leading-5 text-[var(--mw-muted)]">{card.description}</p>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {adminMode && (
+                <div className="rounded-xl border border-[var(--mw-border)] bg-[var(--mw-canvas)] p-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <label className="block space-y-1">
+                    <span className="font-semibold text-[var(--mw-muted)]">
+                      Phạm vi mở rộng (?admin=1)
+                    </span>
+                    <select
+                      value={selectedScope || ''}
+                      onChange={(e) => setSelectedScope((e.target.value || null) as StdDocScope | null)}
+                      className="w-full rounded-lg border border-[var(--mw-border)] px-2.5 py-1.5 text-xs"
+                    >
+                      <option value="">-- Chưa chọn --</option>
+                      {ADMIN_SCOPE_OPTIONS.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block space-y-1">
+                    <span className="font-semibold text-[var(--mw-muted)]">Hồ sơ cơ quan (?admin=1)</span>
+                    <select
+                      value={orgProfileId}
+                      onChange={(e) => setOrgProfileId(e.target.value)}
+                      className="w-full rounded-lg border border-[var(--mw-border)] px-2.5 py-1.5 text-xs"
+                    >
+                      <option value="">-- Không áp hồ sơ riêng --</option>
+                      {orgProfiles.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.profileName}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              )}
+
+              {analysisError && (
+                <div role="alert" className="mw-toast mw-toast-err text-xs">
+                  <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
+                  <span>{analysisError}</span>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[var(--mw-border)]">
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="mw-button mw-button-secondary"
+                >
+                  <ArrowLeft className="size-4" aria-hidden="true" />
+                  Quay lại bước trước
+                </button>
+                <button
+                  type="button"
+                  disabled={!selectedScope || analyzing}
+                  onClick={() => void handleAnalyzeFromStep2()}
+                  className="mw-button mw-button-primary px-5 py-2 text-sm"
+                >
+                  <FileSearch className="size-4" aria-hidden="true" />
+                  {analyzing ? 'Đang phân tích tài liệu...' : 'Phân tích tài liệu'}
+                </button>
+              </div>
+            </section>
+          )}
+
+          {/* BƯỚC 3 – PHÂN TÍCH TÀI LIỆU (4 NHÓM NGÔN NGỮ TỰ NHIÊN) */}
+          {step === 3 && report && (
+            <section className="mw-panel p-5 sm:p-6 space-y-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <h3 className="text-base font-bold text-[var(--mw-ink)]">
+                    Bước 3: Kết quả kiểm tra tài liệu
+                  </h3>
+                  <p className="text-xs text-[var(--mw-muted)]">
+                    Tài liệu: <strong>{activeFile?.name}</strong> · Loại văn bản:{' '}
+                    <strong>{mapDocKindLabel(selectedScope)}</strong>
+                    {adminMode ? ` · ${report.paragraphCount} đoạn · ${report.tables.length} bảng` : ''}
+                  </p>
+                </div>
+
+                {activeFile && onInspectInPreview && (
+                  <button
+                    type="button"
+                    onClick={() => onInspectInPreview(activeFile.path, '')}
+                    className="mw-button mw-button-secondary text-xs"
+                  >
+                    <Eye className="size-4 text-[var(--mw-accent)]" aria-hidden="true" />
+                    Xem trước trang A4
+                  </button>
+                )}
+              </div>
+
+              {report.requiresScopeSelection && (
+                <div className="mw-warning rounded-xl border border-amber-300 dark:border-amber-800 p-3 text-xs flex items-start gap-2">
+                  <HelpCircle className="size-4 shrink-0 mt-0.5" aria-hidden="true" />
+                  <div>
+                    <strong>Cần xác nhận lại loại văn bản:</strong> Hệ thống nhận thấy tài liệu có đặc điểm chưa rõ ràng theo phạm vi đang chọn. Bạn có thể quay lại Bước 2 để đổi loại văn bản nếu cần.
+                  </div>
+                </div>
+              )}
+
+              {report.findings.length === 0 ? (
+                <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-950/20 p-4 text-xs text-emerald-900 dark:text-emerald-200 flex items-start gap-2.5">
+                  <CheckCircle2 className="size-5 text-emerald-600 shrink-0 mt-0.5" aria-hidden="true" />
+                  <div className="space-y-1">
+                    <div className="font-bold text-sm">
+                      Chưa phát hiện vấn đề cần chỉnh sửa thuộc phạm vi kiểm tra
+                    </div>
+                    <p>
+                      Lưu ý: Kết quả này chỉ phản ánh việc kiểm tra trình bày, định dạng và thể thức theo phạm vi bạn đã chọn, không thay thế việc kiểm tra nội dung chuyên môn và tính pháp lý của văn bản.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center text-xs">
+                    {STD_GROUP_META.map((grp) => (
+                      <div
+                        key={grp.key}
+                        className="rounded-xl border border-[var(--mw-border)] bg-[var(--mw-canvas)] p-2.5"
+                      >
+                        <div className="text-lg font-extrabold text-[var(--mw-ink)]">
+                          {groupedFindings[grp.key].length}
+                        </div>
+                        <div className="text-[11px] font-semibold text-[var(--mw-muted)]">
+                          {grp.title}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {STD_GROUP_META.map((grp) => {
+                    const list = groupedFindings[grp.key];
+                    if (list.length === 0) return null;
+                    const isManualGroup = grp.key === 'manual';
+                    return (
+                      <div
+                        key={grp.key}
+                        className="rounded-xl border border-[var(--mw-border)] overflow-hidden"
+                      >
+                        <div className="border-b border-[var(--mw-border)] bg-[var(--mw-canvas)] px-4 py-2.5">
+                          <div className="text-xs font-bold text-[var(--mw-ink)]">
+                            {grp.title} ({list.length})
+                          </div>
+                          <p className="text-[11px] text-[var(--mw-muted)]">{grp.subtitle}</p>
+                        </div>
+
+                        <div className="divide-y divide-[var(--mw-border)]">
+                          {list.map((f) => {
+                            const tier = TIER_PLAIN_META[f.safetyTier];
+                            return (
+                              <div key={f.findingId} className="p-3.5 text-xs space-y-2">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    {adminMode && (
+                                      <span className="font-mono font-bold text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800">
+                                        {f.ruleId}
+                                      </span>
+                                    )}
+                                    <span className="font-bold text-[var(--mw-ink)]">
+                                      {f.ruleName}
+                                    </span>
+                                  </div>
+                                  <span
+                                    className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                                      isManualGroup
+                                        ? 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                                        : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                                    }`}
+                                  >
+                                    {isManualGroup ? 'Cần kiểm tra thủ công' : 'Cần chỉnh sửa'}
+                                  </span>
+                                </div>
+
+                                <p className="text-[11px] text-[var(--mw-muted)] leading-5">
+                                  {f.proposal}
+                                  {f.location ? ` (Vị trí: ${f.location})` : ''}
+                                </p>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-lg border border-[var(--mw-border)] bg-[var(--mw-canvas)] p-2 text-[11px]">
+                                  <div>
+                                    <span className="font-semibold text-[var(--mw-muted)]">Hiện tại: </span>
+                                    <span className="text-rose-700 dark:text-rose-300">
+                                      {f.currentValue || 'Chưa xác định'}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="font-semibold text-[var(--mw-muted)]">Đề xuất: </span>
+                                    <span className="text-emerald-700 dark:text-emerald-300">
+                                      {f.expectedValue || 'Kiểm tra lại theo nội dung văn bản'}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${tier.cls}`}>
+                                    Khả năng xử lý: {tier.label}
+                                  </span>
+                                  {adminMode && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setHighlightedPath(f.elementPath);
+                                        inspectorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                                      }}
+                                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:underline"
+                                    >
+                                      <MapPin className="size-3" /> Soi XML
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {adminMode && (
+                <div className="space-y-2 pt-2">
+                  <div className="flex flex-wrap gap-1.5 text-[11px]">
+                    <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800">
+                      Ảnh/Logo: <strong>{report.assets.drawingCount}</strong> ({report.assets.mediaCount} media)
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800">
+                      Hyperlink: <strong>{report.assets.hyperlinkCount}</strong> · Bookmark:{' '}
+                      <strong>{report.assets.bookmarkCount}</strong> · Field: <strong>{report.assets.fieldCount}</strong>
+                    </span>
+                  </div>
+                  <div
+                    ref={inspectorRef}
+                    className="rounded-xl border border-[var(--mw-border)] bg-[var(--mw-canvas)] p-3 max-h-40 overflow-y-auto space-y-1 text-[11px]"
+                  >
+                    {report.paragraphPreviews.map((p) => (
+                      <div
+                        key={p.elementPath}
+                        className={`p-1.5 rounded border ${
+                          highlightedPath === p.elementPath ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/50' : 'border-transparent'
+                        }`}
+                      >
+                        <span className="font-mono text-[10px] text-[var(--mw-muted)] mr-1.5">
+                          #{p.index + 1} [{p.role}]
+                        </span>
+                        <span>{p.excerpt || '(Đoạn trống)'}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[var(--mw-border)]">
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  className="mw-button mw-button-secondary"
+                >
+                  <ArrowLeft className="size-4" aria-hidden="true" />
+                  Quay lại bước trước
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStep(4)}
+                  className="mw-button mw-button-primary px-5 py-2 text-sm"
+                >
+                  Tiếp tục xác nhận
+                  <ArrowRight className="size-4" aria-hidden="true" />
+                </button>
+              </div>
+            </section>
+          )}
+
+          {/* BƯỚC 4 – XÁC NHẬN CHUẨN HÓA */}
+          {step === 4 && report && (
+            <section className="mw-panel p-5 sm:p-6 space-y-4">
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-[var(--mw-ink)]">
+                  Bước 4: Xác nhận nội dung chuẩn hóa
+                </h3>
+                <p className="text-xs text-[var(--mw-muted)]">
+                  Chọn các thay đổi bạn đồng ý áp dụng. Hệ thống sẽ giữ nguyên toàn bộ nội dung, số hiệu, ngày tháng và chữ ký.
+                </p>
+              </div>
+
+              {/* 1. Tự động sửa an toàn */}
+              <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 overflow-hidden">
+                <div className="flex flex-wrap items-center justify-between gap-2 bg-emerald-50/70 dark:bg-emerald-950/20 px-4 py-2.5 border-b border-emerald-200 dark:border-emerald-900/60">
+                  <div>
+                    <div className="text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                      1. Có thể tự động sửa an toàn ({actionGroups.groupA.length})
+                    </div>
+                    <p className="text-[11px] text-emerald-800/85 dark:text-emerald-300/85">
+                      Các lỗi định dạng, phông chữ, cỡ chữ, giãn dòng và lề trang an toàn. Bạn có thể bỏ tích từng mục nếu muốn giữ nguyên.
+                    </p>
+                  </div>
+                  {actionGroups.groupA.length > 0 && (
+                    <label className="inline-flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={applyAllGroupA}
+                        onChange={(e) => {
+                          setApplyAllGroupA(e.target.checked);
+                          if (e.target.checked) setSkippedIds([]);
+                        }}
+                      />
+                      Chọn tất cả mục an toàn
+                    </label>
+                  )}
+                </div>
+                {actionGroups.groupA.length === 0 ? (
+                  <p className="p-3 text-xs text-[var(--mw-muted)]">
+                    Không có mục sửa tự động nào thuộc nhóm này.
+                  </p>
+                ) : (
+                  <div className="divide-y divide-[var(--mw-border)] max-h-60 overflow-y-auto">
+                    {actionGroups.groupA.map((f) => {
+                      const checked = isFindingSelectedForFix(f);
+                      return (
+                        <label
+                          key={f.findingId}
+                          className="flex items-start gap-2.5 p-3 text-xs cursor-pointer hover:bg-[var(--mw-canvas)]"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleFindingFixSelection(f)}
+                            className="mt-0.5"
+                          />
+                          <div className="min-w-0 flex-1 space-y-0.5">
+                            <div className="font-bold text-[var(--mw-ink)]">
+                              {f.ruleName}
+                              {f.location ? (
+                                <span className="ml-1.5 font-normal text-[11px] text-[var(--mw-muted)]">
+                                  ({f.location})
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="text-[11px] text-[var(--mw-muted)]">
+                              {f.currentValue} → <strong className="text-emerald-700 dark:text-emerald-300">{f.expectedValue}</strong>
+                            </div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* 2. Cần người dùng xác nhận */}
+              {actionGroups.groupB.length > 0 && (
+                <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 overflow-hidden">
+                  <div className="bg-amber-50/70 dark:bg-amber-950/20 px-4 py-2.5 border-b border-amber-200 dark:border-amber-900/60">
+                    <div className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                      2. Cần người dùng xác nhận ({actionGroups.groupB.length})
+                    </div>
+                    <p className="text-[11px] text-amber-800/85 dark:text-amber-300/85">
+                      Hệ thống không tự áp dụng nếu bạn chưa tích chọn xác nhận từng mục bên dưới.
+                    </p>
+                  </div>
+                  <div className="divide-y divide-[var(--mw-border)] max-h-48 overflow-y-auto">
+                    {actionGroups.groupB.map((f) => {
+                      const checked = isFindingSelectedForFix(f);
+                      return (
+                        <label
+                          key={f.findingId}
+                          className="flex items-start gap-2.5 p-3 text-xs cursor-pointer hover:bg-[var(--mw-canvas)]"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleFindingFixSelection(f)}
+                            className="mt-0.5"
+                          />
+                          <div className="min-w-0 flex-1 space-y-0.5">
+                            <div className="font-bold text-[var(--mw-ink)]">{f.ruleName}</div>
+                            <div className="text-[11px] text-[var(--mw-muted)]">{f.proposal}</div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 3. Không tự động sửa */}
+              <div className="rounded-xl border border-[var(--mw-border)] bg-[var(--mw-canvas)] p-3.5 text-xs space-y-1.5">
+                <div className="font-bold text-[var(--mw-ink)]">
+                  3. Không tự động sửa, cần kiểm tra thủ công ({actionGroups.groupC.length})
+                </div>
+                <p className="text-[11px] text-[var(--mw-muted)]">
+                  MonWord cam kết <strong>không tự động thay đổi</strong> số liệu, ngày tháng, nội dung nghiệp vụ, tên người ký hay chức danh trong văn bản.
+                </p>
+                {actionGroups.groupC.length > 0 && (
+                  <ul className="list-disc pl-5 text-[11px] text-[var(--mw-muted)] space-y-0.5">
+                    {actionGroups.groupC.map((f) => (
+                      <li key={f.findingId}>
+                        <strong className="text-[var(--mw-ink)]">{f.ruleName}:</strong> {f.proposal}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* Cách lưu đầu ra */}
+              <div className="rounded-xl border border-[var(--mw-border)] p-3.5 text-xs space-y-2">
+                <div className="font-bold text-[var(--mw-ink)]">Cách lưu kết quả</div>
+                <div className="flex flex-wrap gap-4">
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="stdOutputMode"
+                      checked={outputMode === 'newCopy'}
+                      onChange={() => {
+                        setOutputMode('newCopy');
+                        onChangeOutputModeConfig?.('newCopy');
+                      }}
+                    />
+                    <span>Lưu thành tệp mới (an toàn, giữ nguyên tệp gốc)</span>
+                  </label>
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="stdOutputMode"
+                      checked={outputMode === 'overwriteWithBackup'}
+                      onChange={() => {
+                        setOutputMode('overwriteWithBackup');
+                        onChangeOutputModeConfig?.('overwriteWithBackup');
+                      }}
+                    />
+                    <span>Ghi đè tệp gốc (có tạo bản sao lưu)</span>
+                  </label>
+                </div>
+              </div>
+
+              {execError && (
+                <div role="alert" className="mw-toast mw-toast-err text-xs">
+                  <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
+                  <span>{execError}</span>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[var(--mw-border)]">
                 <button
                   type="button"
                   disabled={executing}
-                  onClick={() => void handleRestore()}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30 cursor-pointer"
+                  onClick={() => setStep(3)}
+                  className="mw-button mw-button-secondary"
                 >
-                  <RotateCcw className="w-4 h-4" />
-                  Hoàn tác
+                  <ArrowLeft className="size-4" aria-hidden="true" />
+                  Quay lại bước trước
                 </button>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* BƯỚC 8-9: KIỂM TRA SAU LƯU & DOCUMENT DIFF ENGINE (10 CHIỀU) */}
-      {execResult && (
-        <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-bold flex items-center gap-2">
-              <GitCompare className="w-4 h-4 text-emerald-600" />
-              Bước 8–9: Xác minh tệp sau lưu &amp; So sánh Trước / Sau (Document Diff Engine)
-            </h3>
-
-            {execResult.success && (
-              <div className="flex items-center gap-2">
-                {isNative ? (
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-[var(--mw-muted)]">
+                    Sẽ áp dụng <strong>{previewFixCount}</strong> thay đổi đã chọn
+                  </span>
                   <button
                     type="button"
-                    onClick={() =>
-                      void bridge.invoke('open_path', {
-                        path: execResult.outputPath,
-                        reveal: false,
-                      })
-                    }
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 text-xs font-semibold cursor-pointer"
+                    disabled={executing}
+                    onClick={() => void runExecute()}
+                    className="mw-button mw-button-primary px-5 py-2 text-sm"
                   >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    Mở trong Word
+                    {executing ? (
+                      <>
+                        <RefreshCw className="size-4 animate-spin" aria-hidden="true" />
+                        Đang thực hiện chuẩn hóa...
+                      </>
+                    ) : (
+                      <>
+                        <Play className="size-4 fill-current" aria-hidden="true" />
+                        Thực hiện chuẩn hóa
+                      </>
+                    )}
                   </button>
-                ) : (
-                  execResult.blobUrl &&
-                  execResult.outputName && (
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* BƯỚC 5 – XEM TRƯỚC VÀ LƯU TÀI LIỆU */}
+          {step === 5 && execResult && execResult.success && (
+            <section className="space-y-4">
+              <div className="mw-panel p-5 space-y-4">
+                <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/70 dark:bg-emerald-950/20 p-4 flex flex-wrap items-start justify-between gap-3">
+                  <div className="flex items-start gap-2.5">
+                    <CheckCircle2 className="size-5 text-emerald-600 shrink-0 mt-0.5" aria-hidden="true" />
+                    <div className="space-y-1 text-xs">
+                      <div className="text-sm font-bold text-emerald-900 dark:text-emerald-200">
+                        Đã chuẩn hóa và xác minh tệp đầu ra thành công
+                      </div>
+                      <div className="text-emerald-800 dark:text-emerald-300">
+                        {execResult.verification?.summaryMessage ||
+                          `Đã áp dụng ${execResult.actionsApplied.length} thay đổi và bảo toàn đầy đủ cấu trúc tài liệu.`}
+                      </div>
+                      <div className="text-[11px] text-[var(--mw-muted)]">
+                        Tệp kết quả: <strong>{verifiedOutputName}</strong>
+                      </div>
+                    </div>
+                  </div>
+                  {canRestore && (
+                    <button
+                      type="button"
+                      onClick={() => void handleRestore()}
+                      className="mw-button mw-button-secondary text-xs"
+                    >
+                      <RotateCcw className="size-3.5" aria-hidden="true" />
+                      Hoàn tác về bản gốc
+                    </button>
+                  )}
+                </div>
+
+                {/* Các nút cuối cùng */}
+                <div className="flex flex-wrap items-center gap-2">
+                  {!isNative && execResult.blobUrl && execResult.outputName ? (
                     <>
                       <button
                         type="button"
                         onClick={() =>
                           triggerBrowserDownload(execResult.blobUrl!, execResult.outputName!)
                         }
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 text-xs font-semibold cursor-pointer"
+                        className="mw-button mw-button-primary"
                       >
-                        <Download className="w-3.5 h-3.5" />
-                        Xuất / Tải (.docx)
+                        <Save className="size-4" aria-hidden="true" />
+                        Lưu tài liệu
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSaveAsOpen((v) => !v)}
+                        className="mw-button mw-button-secondary"
+                      >
+                        <Download className="size-4" aria-hidden="true" />
+                        Lưu thành file khác
                       </button>
                       {execResult.outputBlob && (
                         <button
@@ -928,110 +1679,207 @@ export const StandardizationWorkspace: React.FC<StandardizationWorkspaceProps> =
                               execResult.blobUrl,
                             )
                           }
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-emerald-400 text-emerald-700 dark:text-emerald-300 text-xs font-semibold cursor-pointer"
+                          className="mw-button mw-button-secondary"
                         >
-                          <Share2 className="w-3.5 h-3.5" />
+                          <Share2 className="size-4" aria-hidden="true" />
                           Chia sẻ
                         </button>
                       )}
                     </>
-                  )
-                )}
-              </div>
-            )}
-          </div>
+                  ) : (
+                    isNative &&
+                    execResult.outputPath && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void bridge
+                              .invoke('open_path', { path: execResult.outputPath, reveal: false })
+                              .catch((err) => onStatusToast('error', String(err)))
+                          }
+                          className="mw-button mw-button-primary"
+                        >
+                          <ExternalLink className="size-4" aria-hidden="true" />
+                          Lưu tài liệu
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            void (async () => {
+                              try {
+                                const defaultName =
+                                  execResult.outputPath!.split(/[/\\]/).pop() ||
+                                  'VanBan_ChuanHoa.docx';
+                                const picked = await bridge.invoke<{ paths: string[] }>(
+                                  'pick_save_docx',
+                                  { defaultName },
+                                );
+                                const destPath = picked.paths?.[0];
+                                if (!destPath) return;
+                                const saved = await bridge.invoke<{ outputPath: string }>(
+                                  'save_output_as',
+                                  {
+                                    sourcePath: execResult.outputPath,
+                                    destPath,
+                                  },
+                                );
+                                onStatusToast(
+                                  'success',
+                                  `Đã lưu tài liệu thành tệp mới: ${saved.outputPath}`,
+                                );
+                              } catch (err) {
+                                onStatusToast('error', String(err));
+                              }
+                            })();
+                          }}
+                          className="mw-button mw-button-secondary"
+                        >
+                          <Download className="size-4" aria-hidden="true" />
+                          Lưu thành file khác
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void bridge
+                              .invoke('open_path', { path: execResult.outputPath, reveal: true })
+                              .catch((err) => onStatusToast('error', String(err)))
+                          }
+                          className="mw-button mw-button-secondary"
+                        >
+                          <FolderOpen className="size-4" aria-hidden="true" />
+                          Mở thư mục chứa file
+                        </button>
+                      </>
+                    )
+                  )}
 
-          {execResult.verification && (
-            <div
-              className={`p-3 rounded-xl border text-xs space-y-1 ${
-                execResult.verification.preservationPassed && execResult.verification.xmlValid
-                  ? 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-900/60 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-200'
-                  : 'border-rose-200 bg-rose-50/70 dark:border-rose-900/60 dark:bg-rose-950/20 text-rose-900 dark:text-rose-200'
-              }`}
-            >
-              <div className="font-bold">{execResult.verification.summaryMessage}</div>
-              <div className="text-[11px] opacity-85">
-                Đầu ra: <span className="font-mono">{execResult.outputName || execResult.outputPath}</span>
-              </div>
-            </div>
-          )}
-
-          {execResult.diff && (
-            <>
-              {/* Bảng đối chiếu bảo toàn */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-[11px]">
-                <div className="p-2 rounded-lg border border-slate-200 dark:border-slate-800">
-                  Đoạn chữ: <strong>{execResult.diff.preservation.textParagraphsBefore}</strong> →{' '}
-                  <strong>{execResult.diff.preservation.textParagraphsAfter}</strong>
-                </div>
-                <div className="p-2 rounded-lg border border-slate-200 dark:border-slate-800">
-                  Bảng: <strong>{execResult.diff.preservation.tablesBefore}</strong> →{' '}
-                  <strong>{execResult.diff.preservation.tablesAfter}</strong>
-                </div>
-                <div className="p-2 rounded-lg border border-slate-200 dark:border-slate-800">
-                  Ảnh/Logo: <strong>{execResult.diff.preservation.drawingsBefore}</strong> →{' '}
-                  <strong>{execResult.diff.preservation.drawingsAfter}</strong>
-                </div>
-                <div className="p-2 rounded-lg border border-slate-200 dark:border-slate-800">
-                  Link/BM: <strong>{execResult.diff.preservation.hyperlinksBefore}/{execResult.diff.preservation.bookmarksBefore}</strong> →{' '}
-                  <strong>{execResult.diff.preservation.hyperlinksAfter}/{execResult.diff.preservation.bookmarksAfter}</strong>
-                </div>
-                <div className="p-2 rounded-lg border border-slate-200 dark:border-slate-800">
-                  FN/EN/CMT: <strong>{execResult.diff.preservation.footnotesBefore}/{execResult.diff.preservation.endnotesBefore}/{execResult.diff.preservation.commentsBefore}</strong> →{' '}
-                  <strong>{execResult.diff.preservation.footnotesAfter}/{execResult.diff.preservation.endnotesAfter}/{execResult.diff.preservation.commentsAfter}</strong>
-                </div>
-              </div>
-
-              {/* Bộ lọc Diff 10 chiều */}
-              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                <span className="font-semibold">
-                  Chi tiết thay đổi trước/sau ({filteredDiffs.length}/{execResult.diff.entries.length})
-                </span>
-                <select
-                  value={diffFilter}
-                  onChange={(e) => setDiffFilter(e.target.value as 'all' | DiffDimension)}
-                  className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-[11px]"
-                >
-                  <option value="all">Tất cả 10 chiều so sánh</option>
-                  {Object.entries(DIFF_DIM_LABELS).map(([k, lbl]) => (
-                    <option key={k} value={k}>
-                      {lbl} ({execResult.diff?.dimensionCounts[k] ?? 0})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="max-h-60 overflow-y-auto space-y-1.5 text-[11px]">
-                {filteredDiffs.length === 0 ? (
-                  <div className="text-slate-500 p-2">Không có thay đổi thuộc chiều đang lọc.</div>
-                ) : (
-                  filteredDiffs.map((d, i) => (
-                    <div
-                      key={i}
-                      className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/40"
+                  {onNavigateHome && (
+                    <button
+                      type="button"
+                      onClick={onNavigateHome}
+                      className="mw-button mw-button-secondary"
                     >
-                      <div className="flex flex-wrap items-center justify-between gap-1 font-semibold">
-                        <span>
-                          [{DIFF_DIM_LABELS[d.dimension]}] {d.location}
-                        </span>
-                        <span className="font-mono text-[10px] text-blue-600 dark:text-blue-400">
-                          {d.ruleId}
-                        </span>
-                      </div>
-                      <div className="mt-0.5 text-slate-600 dark:text-slate-400">
-                        <span className="line-through text-rose-600 dark:text-rose-400 mr-2">
-                          {d.beforeVal}
-                        </span>
-                        → <span className="text-emerald-700 dark:text-emerald-300 font-medium">{d.afterVal}</span>
-                      </div>
-                      <div className="text-[10px] text-slate-500 mt-0.5">Lý do: {d.reason}</div>
-                    </div>
-                  ))
+                      <Home className="size-4" aria-hidden="true" />
+                      Quay lại trang chủ
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setStep(4)}
+                    className="mw-button mw-button-secondary"
+                  >
+                    <ArrowLeft className="size-4" aria-hidden="true" />
+                    Quay lại xác nhận
+                  </button>
+                </div>
+
+                {saveAsOpen && !isNative && execResult.blobUrl && (
+                  <div className="rounded-xl border border-[var(--mw-border)] bg-[var(--mw-canvas)] p-3 flex flex-wrap items-center gap-2 text-xs">
+                    <label className="font-semibold text-[var(--mw-ink)]" htmlFor="std-save-as-input">
+                      Tên file mới:
+                    </label>
+                    <input
+                      id="std-save-as-input"
+                      type="text"
+                      value={saveAsName}
+                      onChange={(e) => setSaveAsName(e.target.value)}
+                      className="flex-1 min-w-[220px] rounded-lg border border-[var(--mw-border)] px-2.5 py-1.5 text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const targetName = saveAsName.trim().endsWith('.docx') || saveAsName.trim().endsWith('.docm')
+                          ? saveAsName.trim()
+                          : `${saveAsName.trim() || 'VanBan_ChuanHoa'}.docx`;
+                        triggerBrowserDownload(execResult.blobUrl!, targetName);
+                        onStatusToast('success', `Đã lưu tệp "${targetName}".`);
+                        setSaveAsOpen(false);
+                      }}
+                      className="mw-button mw-button-primary text-xs"
+                    >
+                      Tải xuống file này
+                    </button>
+                  </div>
                 )}
               </div>
-            </>
+
+              {/* Bản xem trước thực tế Trước / Sau bằng LivePreview Engine */}
+              {activeFile && renderEmbeddedPreview ? (
+                <div className="mw-panel p-4 space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h4 className="text-sm font-bold text-[var(--mw-ink)] flex items-center gap-2">
+                      <Eye className="size-4 text-[var(--mw-accent)]" aria-hidden="true" />
+                      Xem trước trang A4 thực tế (Trước &amp; Sau chuẩn hóa)
+                    </h4>
+                    {onInspectInPreview && (
+                      <button
+                        type="button"
+                        onClick={() => onInspectInPreview(activeFile.path, '')}
+                        className="mw-button mw-button-secondary text-xs"
+                      >
+                        Mở toàn màn hình
+                      </button>
+                    )}
+                  </div>
+                  {renderEmbeddedPreview(activeFile.path)}
+                </div>
+              ) : (
+                activeFile &&
+                onInspectInPreview && (
+                  <div className="mw-panel p-4 flex items-center justify-between gap-3 text-xs">
+                    <span>Mở bản xem trước trang A4 thực tế để kiểm tra trước và sau khi chuẩn hóa.</span>
+                    <button
+                      type="button"
+                      onClick={() => onInspectInPreview(activeFile.path, '')}
+                      className="mw-button mw-button-secondary"
+                    >
+                      <Eye className="size-4" aria-hidden="true" />
+                      Xem trước Trước / Sau
+                    </button>
+                  </div>
+                )
+              )}
+
+              {/* Chi tiết kỹ thuật 10 chiều chỉ hiện ở chế độ ?admin=1 */}
+              {execResult.diff && adminMode && (
+                <div className="mw-panel p-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <span className="font-bold flex items-center gap-1.5">
+                      <GitCompare className="size-4 text-emerald-600" />
+                      Chi tiết đối chiếu 10 chiều (?admin=1: {filteredDiffs.length}/{execResult.diff.entries.length})
+                    </span>
+                    <select
+                      value={diffFilter}
+                      onChange={(e) => setDiffFilter(e.target.value as 'all' | DiffDimension)}
+                      className="px-2.5 py-1 rounded-lg border border-[var(--mw-border)] text-[11px]"
+                    >
+                      <option value="all">Tất cả 10 chiều so sánh</option>
+                      {Object.entries(DIFF_DIM_LABELS).map(([k, lbl]) => (
+                        <option key={k} value={k}>
+                          {lbl} ({execResult.diff?.dimensionCounts[k] ?? 0})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="max-h-56 overflow-y-auto space-y-1.5 text-[11px]">
+                    {filteredDiffs.map((d, i) => (
+                      <div key={i} className="p-2 rounded-lg border border-[var(--mw-border)]">
+                        <div className="font-semibold">
+                          [{DIFF_DIM_LABELS[d.dimension]}] {d.location} ({d.ruleId})
+                        </div>
+                        <div>
+                          <span className="line-through text-rose-600 mr-2">{d.beforeVal}</span>→{' '}
+                          <span className="text-emerald-700 font-medium">{d.afterVal}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </section>
           )}
-        </section>
+        </>
       )}
     </div>
   );

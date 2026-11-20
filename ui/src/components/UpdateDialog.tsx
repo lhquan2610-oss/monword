@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { bridge } from '../bridge';
 import type { PlatformEdition, UpdateCheckResult, UpdateProgressPayload } from '../types';
+import { isAdminToolsEnabled } from '../utils/platform';
 import {
   APP_CODENAME,
   APP_VERSION,
@@ -50,6 +51,7 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
   const [checking, setChecking] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [result, setResult] = useState<UpdateCheckResult | null>(initialResult);
+  const adminMode = isAdminToolsEnabled();
 
   useEffect(() => {
     setResult(initialResult);
@@ -64,7 +66,7 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
         onUpdateChecked(res);
         if (notify) {
           if (res.offline) {
-            onToast('ok', `Đang ở v${res.currentVersion}. Máy chủ Live OTA (monword.vercel.app) chưa phản hồi hoặc đang ngoại tuyến.`);
+            onToast('ok', `Đang ở v${res.currentVersion}. Máy chủ cập nhật chưa phản hồi hoặc thiết bị đang ngoại tuyến.`);
           } else if (res.hasUpdate) {
             onToast('ok', `Đã phát hiện phiên bản mới MonWord v${res.latestVersion}!`);
           } else {
@@ -99,16 +101,16 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
     try {
       if (isNativeWin) {
         const res = await bridge.invoke<{ version?: string }>('apply_live_ota');
-        onToast('ok', `Đã đồng bộ Live OTA v${res?.version || latVer}! Đang tự động nạp lại giao diện...`);
+        onToast('ok', `Đã cập nhật phiên bản v${res?.version || latVer}! Đang tự động nạp lại giao diện...`);
       } else if (edition === 'mobile') {
-        onToast('ok', 'Đang kích hoạt Live OTA trên Mobile (không cần cài lại app)...');
+        onToast('ok', 'Đang cập nhật phiên bản mới trên điện thoại...');
         await applyMobileOtaUpdate(latVer);
       } else {
         onToast('ok', 'Đang làm mới Cache và đồng bộ Web App...');
         await applyWebUpdate(latVer);
       }
     } catch (e) {
-      onToast('err', `Cập nhật Live OTA thất bại: ${(e as Error).message}`);
+      onToast('err', `Cập nhật phiên bản thất bại: ${(e as Error).message}`);
       setUpdating(false);
     }
   };
@@ -133,7 +135,7 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
   };
 
   return (
-    <Dialog label="Trung tâm Phiên bản & Live OTA" widthClass="max-w-lg" onClose={onClose}>
+    <Dialog label="Kiểm tra và Cập nhật phiên bản" widthClass="max-w-lg" onClose={onClose}>
       <div>
         {/* Header */}
         <div
@@ -151,7 +153,7 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
             )}
             <div>
               <h2 className="text-sm font-bold leading-tight">
-                {hasUpdate ? `Có bản cập nhật mới MonWord v${latVer}!` : 'Trung tâm Phiên bản & Live OTA'}
+                {hasUpdate ? `Có bản cập nhật mới MonWord v${latVer}!` : 'Kiểm tra và Cập nhật phiên bản'}
               </h2>
               <p className={`text-[11px] ${hasUpdate ? 'text-current' : 'text-slate-500 dark:text-slate-400'}`}>
                 {result?.codename || APP_CODENAME}
@@ -259,10 +261,10 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
                 <span>
                   {isNativeWin
                     ? hasUpdate
-                      ? `Cập nhật Live OTA v${latVer}`
-                      : 'Đồng bộ Live OTA mới nhất'
+                      ? `Cập nhật lên v${latVer}`
+                      : 'Cập nhật phiên bản mới nhất'
                     : edition === 'mobile'
-                      ? 'Cập nhật Mobile Live OTA'
+                      ? 'Cập nhật ứng dụng'
                       : 'Làm mới & Cập nhật Web'}
                 </span>
               </button>
@@ -282,12 +284,18 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
             </div>
           )}
 
-          <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
-            <div className="font-semibold text-slate-800 dark:text-slate-200">Cách Live OTA hoạt động trên 3 phiên bản:</div>
-            <div>• <strong>Windows (.exe):</strong> tải gói giao diện &amp; bộ chuẩn mới từ <span className="font-mono text-blue-600">monword.vercel.app</span> vào <span className="font-mono">%LOCALAPPDATA%\MonWord\ota-dist</span> mà không cần tải lại file `.exe`.</div>
-            <div>• <strong>Web:</strong> tự dọn Cache Storage / Service Worker khi phát hiện <span className="font-mono">version.json</span> mới.</div>
-            <div>• <strong>Mobile:</strong> đồng bộ thẳng giao diện cloud mới nhất không cần cài lại ứng dụng.</div>
-          </div>
+          {adminMode ? (
+            <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 text-[11px] text-slate-600 dark:text-slate-400 space-y-1">
+              <div className="font-semibold text-slate-800 dark:text-slate-200">Cách Live OTA hoạt động trên 3 phiên bản:</div>
+              <div>• <strong>Windows (.exe):</strong> tải gói giao diện &amp; bộ chuẩn mới từ <span className="font-mono text-blue-600">monword.vercel.app</span> vào <span className="font-mono">%LOCALAPPDATA%\MonWord\ota-dist</span> mà không cần tải lại file `.exe`.</div>
+              <div>• <strong>Web:</strong> tự dọn Cache Storage / Service Worker khi phát hiện <span className="font-mono">version.json</span> mới.</div>
+              <div>• <strong>Mobile:</strong> đồng bộ thẳng giao diện cloud mới nhất không cần cài lại ứng dụng.</div>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3.5 text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+              MonWord tự động cập nhật giao diện và quy chuẩn thể thức mới nhất mà không làm mất cài đặt hay tài liệu của bạn.
+            </div>
+          )}
         </div>
 
         {/* Footer */}

@@ -33,23 +33,29 @@ import {
   type AddinItem,
   type AppInfoPayload,
   type AuditReport,
+  type ComplianceAuditReport,
   DEFAULT_ND30_CONFIG,
   DEFAULT_PRESETS_FALLBACK,
+  type DocumentTemplate,
   type FileProcessResult,
   type FileQueueItem,
   type NavTab,
   type OperationLogEntry,
   type PresetId,
   type PresetInfo,
+  type PreviewOverrideConfig,
   type ProcessConfig,
   type ProgressPayload,
   type RecentDocEntry,
+  type StdDocScope,
+  type StdExecutionResult,
   type SystemStatus,
   type SystemTweaksRequest,
+  type TemplateApplyResult,
   type UpdateCheckResult,
   type UpdateProgressPayload,
 } from './types';
-import { usePlatformEdition } from './utils/platform';
+import { isAdminToolsEnabled, usePlatformEdition } from './utils/platform';
 import {
   APP_VERSION,
   GITHUB_RELEASES_URL,
@@ -65,6 +71,26 @@ import {
 } from './utils/webDocxEngine';
 
 const RECENT_DOCS_STORAGE_KEY = 'monword_recent_docs_v1';
+const PROCESS_CONFIG_STORAGE_KEY = 'monword_process_config_v1';
+
+function loadInitialProcessConfig(): ProcessConfig {
+  if (typeof window === 'undefined') return DEFAULT_ND30_CONFIG;
+  try {
+    const raw = localStorage.getItem(PROCESS_CONFIG_STORAGE_KEY);
+    if (!raw) return DEFAULT_ND30_CONFIG;
+    const parsed = JSON.parse(raw) as Partial<ProcessConfig>;
+    return {
+      ...DEFAULT_ND30_CONFIG,
+      ...parsed,
+      format: { ...DEFAULT_ND30_CONFIG.format, ...(parsed.format || {}) },
+      cleaner: { ...DEFAULT_ND30_CONFIG.cleaner, ...(parsed.cleaner || {}) },
+      pageToc: { ...DEFAULT_ND30_CONFIG.pageToc, ...(parsed.pageToc || {}) },
+      security: { ...DEFAULT_ND30_CONFIG.security, ...(parsed.security || {}) },
+    };
+  } catch {
+    return DEFAULT_ND30_CONFIG;
+  }
+}
 
 const VALID_TABS: ReadonlySet<string> = new Set<NavTab>([
   'home',
@@ -109,13 +135,21 @@ function loadInitialRecentDocs(): RecentDocEntry[] {
   }
 }
 
+function getRecentEntryKey(item: RecentDocEntry): string {
+  const op = item.operation || (item.status === 'selected' ? 'selected' : item.status === 'checked' ? 'audit' : 'standardize');
+  return `${item.path.toLowerCase()}::${op}`;
+}
+
 function upsertRecentDocs(prev: RecentDocEntry[], updates: RecentDocEntry[]): RecentDocEntry[] {
   const map = new Map<string, RecentDocEntry>();
   for (const item of prev) {
-    map.set(item.path.toLowerCase(), item);
+    map.set(getRecentEntryKey(item), item);
   }
   for (const next of updates) {
-    const key = next.path.toLowerCase();
+    const key = getRecentEntryKey(next);
+    if (next.operation) {
+      map.delete(`${next.path.toLowerCase()}::selected`);
+    }
     const existing = map.get(key);
     map.set(key, {
       ...existing,
@@ -135,7 +169,7 @@ export function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [activeTab, setActiveTab] = useState<NavTab>(() => getInitialTab());
   const [presets, setPresets] = useState<PresetInfo[]>(DEFAULT_PRESETS_FALLBACK);
-  const [config, setConfig] = useState<ProcessConfig>(DEFAULT_ND30_CONFIG);
+  const [config, setConfig] = useState<ProcessConfig>(() => loadInitialProcessConfig());
 
   const [files, setFiles] = useState<FileQueueItem[]>([]);
   const [audits, setAudits] = useState<Record<string, AuditReport>>({});
@@ -147,7 +181,7 @@ export function App() {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<ProgressPayload | null>(null);
   const [activityLogs, setActivityLogs] = useState<string[]>([
-    'Sẵn sàng xử lý văn bản (MonWord v4.0.0 · OpenXML + Live OTA).',
+    `Sẵn sàng xử lý văn bản (MonWord v${APP_VERSION}).`,
   ]);
   const [toast, setToast] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
@@ -165,6 +199,10 @@ export function App() {
   const [loadingSystem, setLoadingSystem] = useState(false);
   const [operationLogs, setOperationLogs] = useState<OperationLogEntry[]>([]);
   const [previewFocusTarget, setPreviewFocusTarget] = useState<LivePreviewFocusTarget | null>(null);
+  const [preferredStdTarget, setPreferredStdTarget] = useState<{
+    filePath: string;
+    scope: StdDocScope;
+  } | null>(null);
 
   const webFileInputRef = useRef<HTMLInputElement | null>(null);
   const busyRef = useRef(false);
@@ -183,6 +221,14 @@ export function App() {
       // ignore storage quota
     }
   }, [recentDocs]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(PROCESS_CONFIG_STORAGE_KEY, JSON.stringify(config));
+    } catch {
+      // ignore storage quota
+    }
+  }, [config]);
 
   useEffect(() => {
     if (!toast) return;
@@ -477,7 +523,12 @@ export function App() {
             ext: r.fileType.toLowerCase(),
             updatedAt: checkedAt,
             status: 'checked',
-            summary: `Điểm thể thức: ${r.score}/100`,
+            operation: 'audit',
+            resultStatus: r.issues.length === 0 ? 'passed' : 'needsFix',
+            summary:
+              r.issues.length === 0
+                ? 'Kết quả kiểm tra: Đạt'
+                : `Cần chỉnh sửa (${r.issues.length} mục)`,
           })),
         ),
       );
@@ -485,7 +536,7 @@ export function App() {
       if (reports.length === 1) {
         setSelectedAudit(reports[0]);
       } else {
-        setToast({ type: 'ok', text: `Đã chấm điểm ${reports.length} tệp. Bấm vào điểm số để xem chi tiết.` });
+        setToast({ type: 'ok', text: `Đã kiểm tra ${reports.length} tệp.` });
       }
     } catch (e) {
       setToast({ type: 'err', text: (e as Error).message });
@@ -495,24 +546,86 @@ export function App() {
     }
   };
 
-  const handleProcessFiles = async () => {
-    if (files.length === 0) {
+  const handleProcessFiles = async (
+    targetPath?: string,
+    previewOverrides?: PreviewOverrideConfig,
+  ) => {
+    const targetFiles = targetPath ? files.filter((f) => f.path === targetPath) : files;
+    if (targetFiles.length === 0) {
       setToast({ type: 'err', text: 'Hàng đợi đang trống. Hãy chọn file trước.' });
       return;
     }
+    const effectiveConfig: ProcessConfig =
+      previewOverrides && previewOverrides.enabled
+        ? {
+            ...config,
+            format: {
+              ...config.format,
+              ...(previewOverrides.fontName ? { fontName: previewOverrides.fontName } : {}),
+              ...(previewOverrides.fontSizePt != null
+                ? { fontSizePt: previewOverrides.fontSizePt }
+                : {}),
+              ...(previewOverrides.tableFontSizePt != null
+                ? { tableFontSizePt: previewOverrides.tableFontSizePt }
+                : {}),
+              ...(previewOverrides.lineSpacingMult != null
+                ? { lineSpacing: previewOverrides.lineSpacingMult }
+                : {}),
+              ...(previewOverrides.spaceBeforePt != null
+                ? { spaceBeforePt: previewOverrides.spaceBeforePt }
+                : {}),
+              ...(previewOverrides.spaceAfterPt != null
+                ? { spaceAfterPt: previewOverrides.spaceAfterPt }
+                : {}),
+              ...(previewOverrides.firstLineIndentCm != null
+                ? { firstLineIndentCm: previewOverrides.firstLineIndentCm }
+                : {}),
+              ...(previewOverrides.paperSize ? { paperSize: previewOverrides.paperSize } : {}),
+              ...(previewOverrides.marginTopCm != null
+                ? { marginTopCm: previewOverrides.marginTopCm }
+                : {}),
+              ...(previewOverrides.marginBottomCm != null
+                ? { marginBottomCm: previewOverrides.marginBottomCm }
+                : {}),
+              ...(previewOverrides.marginLeftCm != null
+                ? { marginLeftCm: previewOverrides.marginLeftCm }
+                : {}),
+              ...(previewOverrides.marginRightCm != null
+                ? { marginRightCm: previewOverrides.marginRightCm }
+                : {}),
+            },
+            pageToc: {
+              ...config.pageToc,
+              ...(previewOverrides.orientationOverride
+                ? {
+                    orientationMode:
+                      previewOverrides.orientationOverride === 'keepSections'
+                        ? 'keep'
+                        : previewOverrides.orientationOverride,
+                  }
+                : {}),
+              autoSwapBindingMargin: previewOverrides.autoSwapBindingMargin,
+            },
+          }
+        : config;
     setBusy(true);
     setProgress(null);
     try {
       let out: FileProcessResult[] = [];
-      if (isNativeWin && files.every((f) => !f.webFile)) {
+      if (isNativeWin && targetFiles.every((f) => !f.webFile)) {
         out = await bridge.invoke<FileProcessResult[]>('process_files', {
-          paths: files.map((f) => f.path),
-          config,
+          paths: targetFiles.map((f) => f.path),
+          config: effectiveConfig,
         });
       } else {
-        for (let i = 0; i < files.length; i++) {
-          setProgress({ phase: 'process', current: i + 1, total: files.length, file: files[i].name });
-          out.push(await processWebDocxFile(files[i], config));
+        for (let i = 0; i < targetFiles.length; i++) {
+          setProgress({
+            phase: 'process',
+            current: i + 1,
+            total: targetFiles.length,
+            file: targetFiles[i].name,
+          });
+          out.push(await processWebDocxFile(targetFiles[i], effectiveConfig));
         }
       }
 
@@ -547,6 +660,8 @@ export function App() {
                 ext,
                 updatedAt: doneAt,
                 status: 'standardized',
+                operation: 'standardize',
+                resultStatus: 'completed',
                 outputPath: r.outputPath,
                 backupPath: r.backupPath,
                 summary: r.statsSummary,
@@ -592,11 +707,16 @@ export function App() {
     }
   };
 
-  const handleOpenOutput = async (path: string, reveal = false) => {
+  const handleOpenOutput = async (path: string, reveal = false): Promise<boolean> => {
     try {
       await bridge.invoke('open_path', { path, reveal });
+      return true;
     } catch (e) {
-      setToast({ type: 'err', text: (e as Error).message });
+      setToast({
+        type: 'err',
+        text: `Không thể mở đường dẫn "${path}": ${(e as Error).message}`,
+      });
+      return false;
     }
   };
 
@@ -707,6 +827,106 @@ export function App() {
     setActiveTab('livePreview');
   }, []);
 
+  const handleRecordSingleStandardization = useCallback(
+    (file: FileQueueItem, res: StdExecutionResult) => {
+      if (!res.success) return;
+      const summary =
+        res.verification?.summaryMessage ||
+        `Đã chuẩn hóa (${res.actionsApplied.length} thay đổi)`;
+      setResults((prev) => ({
+        ...prev,
+        [file.path]: {
+          inputPath: file.path,
+          outputPath: res.outputPath,
+          backupPath: res.backupPath,
+          success: true,
+          statsSummary: summary,
+          logs: res.logs,
+          error: null,
+          auditBefore: null,
+          auditAfter: null,
+          blobUrl: res.blobUrl,
+          outputName: res.outputName,
+          outputBlob: res.outputBlob,
+        },
+      }));
+      setRecentDocs((prev) =>
+        upsertRecentDocs(prev, [
+          {
+            path: file.path,
+            name: file.name,
+            ext: file.ext,
+            updatedAt: new Date().toISOString(),
+            status: 'standardized',
+            operation: 'standardize',
+            resultStatus: 'completed',
+            outputPath: res.outputPath,
+            backupPath: res.backupPath,
+            summary,
+          },
+        ]),
+      );
+    },
+    [],
+  );
+
+  const handleRecordAuditCompletion = useCallback(
+    (file: FileQueueItem, rep: ComplianceAuditReport) => {
+      const fixableIssues =
+        rep.traceableFindings.filter((f) => f.safetyTier !== 'groupCManualOnly').length +
+        rep.advancedIssues.length;
+      const summary =
+        fixableIssues === 0
+          ? 'Kết quả kiểm tra: Đạt'
+          : `Cần chỉnh sửa (${fixableIssues} mục)`;
+      setRecentDocs((prev) =>
+        upsertRecentDocs(prev, [
+          {
+            path: file.path,
+            name: file.name,
+            ext: file.ext,
+            updatedAt: new Date().toISOString(),
+            status: 'checked',
+            operation: 'audit',
+            resultStatus: fixableIssues === 0 ? 'passed' : 'needsFix',
+            summary,
+          },
+        ]),
+      );
+    },
+    [],
+  );
+
+  const handleRecordTemplateCreation = useCallback(
+    (res: TemplateApplyResult, tpl: DocumentTemplate) => {
+      const outName =
+        res.outputName ||
+        res.outputPath?.split(/[/\\]/).pop() ||
+        `${tpl.docType}_MonWord.docx`;
+      const recordPath =
+        isNativeWin && res.outputPath
+          ? res.outputPath
+          : `web://tpl_${tpl.templateId}_${Date.now()}`;
+      setRecentDocs((prev) =>
+        upsertRecentDocs(prev, [
+          {
+            path: recordPath,
+            name: outName,
+            ext: 'docx',
+            updatedAt: new Date().toISOString(),
+            status: 'standardized',
+            operation: 'template',
+            resultStatus: res.success ? 'completed' : 'failed',
+            outputPath: isNativeWin ? res.outputPath : outName,
+            backupPath: isNativeWin ? (res.backupPath ?? null) : null,
+            summary: res.success ? `Tạo từ mẫu: ${tpl.name}` : res.error || 'Tạo mẫu thất bại',
+          },
+        ]),
+      );
+    },
+    [isNativeWin],
+  );
+
   const refreshOperationLogs = useCallback(async () => {
     if (!isNativeWin) return;
     try {
@@ -742,7 +962,7 @@ export function App() {
 
   const navigateTo = (tab: NavTab) => {
     setActiveTab(tab);
-    if (tab === 'system' && isNativeWin) void refreshSystemAndAddins();
+    if ((tab === 'system' || tab === 'advancedSettings') && isNativeWin) void refreshSystemAndAddins();
     if (tab === 'security' && isNativeWin) void refreshOperationLogs();
   };
 
@@ -783,11 +1003,13 @@ export function App() {
     recentDocs,
     onNavigate: navigateTo,
     onPickFiles: () => void handlePickFiles(),
-    onOpenOutput: (path: string, reveal?: boolean) => void handleOpenOutput(path, reveal),
+    onOpenOutput: (path: string, reveal?: boolean) => handleOpenOutput(path, reveal),
     onDownloadOutput: handleDownloadWebOutput,
     onRestoreBackup: (originalPath: string, backupPath: string) =>
       void handleRestoreBackup(originalPath, backupPath),
     onClearRecent: () => setRecentDocs([]),
+    currentVersion,
+    onOpenUpdate: () => setUpdateDialogOpen(true),
     renderHeaderBuilder: () => (
       <HeaderBuilderWorkspace
         files={files}
@@ -800,9 +1022,47 @@ export function App() {
       <StandardizationWorkspace
         files={files}
         onPickFiles={handlePickFiles}
+        onDropWebFiles={addWebFiles}
         onReplaceWebFile={handleReplaceWebFile}
         onInspectInPreview={handleInspectInPreview}
+        renderEmbeddedPreview={(filePath) => {
+          const target = files.find((f) => f.path === filePath);
+          return (
+            <LivePreviewWorkspace
+              files={target ? [target] : files}
+              results={results}
+              config={config}
+              onPickFiles={handlePickFiles}
+              onProcessCurrentFile={(fp, ov) => void handleProcessFiles(fp, ov)}
+              onStatusToast={handleHeaderToast}
+            />
+          );
+        }}
+        onNavigateHome={() => navigateTo('home')}
         onStatusToast={handleHeaderToast}
+        onPickFolder={isNativeWin ? () => void handlePickFolder() : undefined}
+        onRemoveFile={(path) => setFiles((prev) => prev.filter((f) => f.path !== path))}
+        onClearFiles={() => {
+          setFiles([]);
+          setAudits({});
+          setResults({});
+        }}
+        onBatchProcess={() => void handleProcessFiles()}
+        batchResults={results}
+        batchBusy={busy}
+        batchProgress={progress}
+        presets={presets}
+        activePreset={config.preset}
+        onSelectPreset={applyPreset}
+        outputModeConfig={config.outputMode}
+        onChangeOutputModeConfig={(mode) => setConfig((p) => ({ ...p, outputMode: mode }))}
+        onOpenOutput={(path, reveal) => void handleOpenOutput(path, reveal)}
+        onDownloadOutput={handleDownloadWebOutput}
+        onRestoreBackup={(orig, bak) => void handleRestoreBackup(orig, bak)}
+        onSingleExecComplete={handleRecordSingleStandardization}
+        preferredFilePath={preferredStdTarget?.filePath ?? null}
+        preferredScope={preferredStdTarget?.scope ?? null}
+        onClearPreferredTarget={() => setPreferredStdTarget(null)}
       />
     ),
     renderTemplateEngine: () => (
@@ -810,6 +1070,7 @@ export function App() {
         files={files}
         onPickFiles={handlePickFiles}
         onReplaceWebFile={handleReplaceWebFile}
+        onTemplateCreated={handleRecordTemplateCreation}
         onStatusToast={handleHeaderToast}
       />
     ),
@@ -827,6 +1088,11 @@ export function App() {
         onPickFiles={handlePickFiles}
         onReplaceWebFile={handleReplaceWebFile}
         onInspectInPreview={handleInspectInPreview}
+        onStartStandardize={(filePath, scope) => {
+          setPreferredStdTarget({ filePath, scope });
+          navigateTo('standardizer');
+        }}
+        onAuditCompleted={handleRecordAuditCompletion}
         onStatusToast={handleHeaderToast}
       />
     ),
@@ -838,7 +1104,7 @@ export function App() {
         focusTarget={previewFocusTarget}
         onClearFocusTarget={() => setPreviewFocusTarget(null)}
         onPickFiles={handlePickFiles}
-        onProcessCurrentFile={() => void handleProcessFiles()}
+        onProcessCurrentFile={(fp, ov) => void handleProcessFiles(fp, ov)}
         onStatusToast={handleHeaderToast}
       />
     ),
@@ -952,7 +1218,9 @@ export function App() {
       )}
 
       {edition === 'win' && (() => {
-        const showBatchPanels = ['oneClick', 'format', 'pageToc', 'cleaner', 'security'].includes(activeTab);
+        const showBatchPanels =
+          isAdminToolsEnabled() &&
+          ['oneClick', 'format', 'pageToc', 'cleaner', 'security'].includes(activeTab);
         return (
         <div
           onDragOver={!isNativeWin ? handleWebDragOver : undefined}
@@ -1022,8 +1290,10 @@ export function App() {
               {activeTab === 'home' ? (
                 <WorkspaceHome
                   files={files}
+                  recentDocs={recentDocs}
                   onPickFiles={handlePickFiles}
                   onPickFolder={isNativeWin ? handlePickFolder : undefined}
+                  onOpenOutput={(path, reveal) => void handleOpenOutput(path, reveal)}
                   onTask={navigateTo}
                   onShowFiles={() => navigateTo('history')}
                   progress={busy ? progress : null}
@@ -1125,7 +1395,7 @@ export function App() {
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={handleProcessFiles}
+                  onClick={() => void handleProcessFiles()}
                   className="mw-button mw-button-primary"
                 >
                   <Play className="w-3.5 h-3.5 fill-current" />

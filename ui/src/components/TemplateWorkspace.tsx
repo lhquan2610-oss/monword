@@ -23,6 +23,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { bridge } from '../bridge';
+import { isAdminToolsEnabled, loadDefaultDocInfo } from '../utils/platform';
 import type {
   AdminDocType,
   DocumentTemplate,
@@ -68,11 +69,112 @@ export interface TemplateWorkspaceProps {
   files: FileQueueItem[];
   onPickFiles: () => void;
   onReplaceWebFile?: (path: string, file: File) => void;
+  onTemplateCreated?: (res: TemplateApplyResult, tpl: DocumentTemplate) => void;
   onStatusToast: (kind: 'success' | 'error' | 'info', msg: string) => void;
 }
 
 type SubTab = 'apply' | 'designer' | 'versions';
-type GroupFilter = 'all' | 'administrative' | 'enterprise' | 'mine';
+type GroupFilter = 'popular' | 'administrative' | 'enterprise' | 'all' | 'mine';
+
+const POPULAR_TEMPLATE_ORDER: string[] = [
+  'adm-cong-van',
+  'adm-to-trinh',
+  'adm-bao-cao',
+  'adm-quyet-dinh',
+  'adm-thong-bao',
+  'adm-bien-ban',
+  'adm-ke-hoach',
+  'adm-giay-moi',
+];
+
+const POPULAR_TEMPLATE_SET = new Set<string>(POPULAR_TEMPLATE_ORDER);
+
+interface TemplateFieldSpec {
+  key: keyof Omit<DynamicTemplateFields, 'extraFields'>;
+  label: string;
+  placeholder: string;
+  required: boolean;
+  fullWidth?: boolean;
+}
+
+function getTemplateFieldSpecs(
+  tpl: DocumentTemplate | null,
+  org: OrganizationProfile | null,
+): TemplateFieldSpec[] {
+  if (!tpl) return [];
+  const ph = new Set(tpl.detectedPlaceholders || []);
+  const textBlob = JSON.stringify(tpl.contentStructure || []) + JSON.stringify(tpl.footerConfig || {});
+  const hasPlaceholder = (k: string) => ph.has(k) || textBlob.includes(`{{${k}}}`);
+
+  const specs: TemplateFieldSpec[] = [];
+  if (tpl.headerConfig.showIssuingOrg || hasPlaceholder('ten_co_quan')) {
+    specs.push({
+      key: 'tenCoQuan',
+      label: 'Tên cơ quan / đơn vị ban hành',
+      placeholder: org?.issuingOrg || 'Ví dụ: ỦY BAN NHÂN DÂN TỈNH...',
+      required: true,
+    });
+  }
+  if (tpl.headerConfig.showNumberSymbol || hasPlaceholder('so_van_ban')) {
+    specs.push({
+      key: 'soVanBan',
+      label: 'Số và ký hiệu văn bản',
+      placeholder: 'Ví dụ: 125/QĐ-UBND',
+      required: false,
+    });
+  }
+  if (tpl.headerConfig.showLocationDate || hasPlaceholder('dia_danh')) {
+    specs.push({
+      key: 'diaDanh',
+      label: 'Địa danh ban hành',
+      placeholder: org?.defaultLocation || 'Ví dụ: Hà Nội',
+      required: true,
+    });
+  }
+  if (tpl.headerConfig.showLocationDate || hasPlaceholder('ngay_thang')) {
+    specs.push({
+      key: 'ngayThang',
+      label: 'Ngày tháng ban hành',
+      placeholder: 'Ví dụ: 20/11/2026',
+      required: false,
+    });
+  }
+  if (tpl.signatureConfig?.layout !== 'none' || hasPlaceholder('chuc_vu')) {
+    specs.push({
+      key: 'chucVu',
+      label: 'Chức vụ người ký',
+      placeholder: 'Ví dụ: GIÁM ĐỐC / CHỦ TỊCH',
+      required: true,
+    });
+  }
+  if (tpl.signatureConfig?.layout !== 'none' || hasPlaceholder('nguoi_ky')) {
+    specs.push({
+      key: 'nguoiKy',
+      label: 'Họ và tên người ký',
+      placeholder: 'Ví dụ: Nguyễn Văn An',
+      required: false,
+    });
+  }
+  if (tpl.footerConfig?.showRecipientList || hasPlaceholder('nguoi_nhan')) {
+    specs.push({
+      key: 'nguoiNhan',
+      label: 'Nơi nhận / Kính gửi',
+      placeholder: 'Ví dụ: Các phòng ban trực thuộc',
+      required: false,
+      fullWidth: true,
+    });
+  }
+  if (tpl.headerConfig.showDocTypeAndSubject || hasPlaceholder('trich_yeu')) {
+    specs.push({
+      key: 'trichYeu',
+      label: 'Trích yếu nội dung văn bản',
+      placeholder: 'Ví dụ: Về việc triển khai kế hoạch công tác năm 2026',
+      required: true,
+      fullWidth: true,
+    });
+  }
+  return specs;
+}
 
 const EMPTY_DYNAMIC_FIELDS: DynamicTemplateFields = {
   tenCoQuan: '',
@@ -111,13 +213,15 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
   files,
   onPickFiles,
   onReplaceWebFile,
+  onTemplateCreated,
   onStatusToast,
 }) => {
   const isNative = bridge.isNativeHost();
+  const adminMode = isAdminToolsEnabled();
   const webImportDocxInputRef = useRef<HTMLInputElement>(null);
 
   const [subTab, setSubTab] = useState<SubTab>('apply');
-  const [groupFilter, setGroupFilter] = useState<GroupFilter>('all');
+  const [groupFilter, setGroupFilter] = useState<GroupFilter>('popular');
   const [searchQuery, setSearchQuery] = useState('');
 
   const [catalog, setCatalog] = useState<TemplateCatalogResponse>(() => ({
@@ -134,7 +238,14 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
   const [outputMode, setOutputMode] = useState<OutputMode>('newCopy');
   const [insertFramingOnExisting, setInsertFramingOnExisting] = useState<boolean>(true);
   const [enabledSectionIds, setEnabledSectionIds] = useState<string[]>([]);
-  const [dynamicFields, setDynamicFields] = useState<DynamicTemplateFields>(EMPTY_DYNAMIC_FIELDS);
+  const [dynamicFields, setDynamicFields] = useState<DynamicTemplateFields>(() => {
+    const def = loadDefaultDocInfo();
+    return {
+      ...EMPTY_DYNAMIC_FIELDS,
+      chucVu: def.defaultSignerTitle,
+      nguoiKy: def.defaultSignerName,
+    };
+  });
 
   const [previewResult, setPreviewResult] = useState<TemplatePreviewResult | null>(null);
   const [applyResult, setApplyResult] = useState<TemplateApplyResult | null>(null);
@@ -170,16 +281,22 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
 
   const loadCatalogAndOrgs = useCallback(async () => {
     try {
+      const defOrgId = loadDefaultDocInfo().defaultOrgProfileId;
+      let loadedOrgs: OrganizationProfile[] = [];
       if (isNative) {
         const [cat, orgs] = await Promise.all([
           bridge.invoke<TemplateCatalogResponse>('list_templates', {}),
           bridge.invoke<OrganizationProfile[]>('list_org_profiles', {}),
         ]);
         setCatalog(cat);
-        setOrgProfiles(orgs);
+        loadedOrgs = Array.isArray(orgs) ? orgs : [];
       } else {
         setCatalog(listWebTemplates());
-        setOrgProfiles(listWebOrgProfiles());
+        loadedOrgs = listWebOrgProfiles();
+      }
+      setOrgProfiles(loadedOrgs);
+      if (defOrgId && loadedOrgs.some((o) => o.id === defOrgId)) {
+        setSelectedOrgId((prev) => prev || defOrgId);
       }
     } catch (err) {
       onStatusToast('error', (err as Error).message);
@@ -237,18 +354,46 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
 
   const filteredTemplates = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return catalog.templates.filter((t) => {
-      if (groupFilter === 'administrative' && t.group !== 'administrative') return false;
-      if (groupFilter === 'enterprise' && t.group !== 'enterprise') return false;
-      if (groupFilter === 'mine' && t.isSystem) return false;
-      if (!q) return true;
-      return (
-        t.name.toLowerCase().includes(q) ||
-        t.docType.toLowerCase().includes(q) ||
-        t.description.toLowerCase().includes(q)
-      );
+    const list = catalog.templates.filter((t) => {
+      if (q) {
+        return (
+          t.name.toLowerCase().includes(q) ||
+          t.docType.toLowerCase().includes(q) ||
+          t.description.toLowerCase().includes(q)
+        );
+      }
+      if (groupFilter === 'popular') return POPULAR_TEMPLATE_SET.has(t.templateId);
+      if (groupFilter === 'administrative') return t.group === 'administrative';
+      if (groupFilter === 'enterprise') return t.group === 'enterprise';
+      if (groupFilter === 'mine') return !t.isSystem;
+      return true;
     });
+    if (!q && groupFilter === 'popular') {
+      return [...list].sort(
+        (a, b) =>
+          POPULAR_TEMPLATE_ORDER.indexOf(a.templateId) -
+          POPULAR_TEMPLATE_ORDER.indexOf(b.templateId),
+      );
+    }
+    return list;
   }, [catalog.templates, groupFilter, searchQuery]);
+
+  // Auto-fill editable agency & location from saved Hồ sơ cơ quan when blank
+  useEffect(() => {
+    if (!selectedOrgProfile) return;
+    setDynamicFields((prev) => ({
+      ...prev,
+      tenCoQuan: prev.tenCoQuan || selectedOrgProfile.issuingOrg || '',
+      coQuanChuQuan: prev.coQuanChuQuan || selectedOrgProfile.governingOrg || '',
+      vietTatCoQuan: prev.vietTatCoQuan || selectedOrgProfile.agencyAbbreviation || '',
+      diaDanh: prev.diaDanh || selectedOrgProfile.defaultLocation || '',
+    }));
+  }, [selectedOrgProfile]);
+
+  const fieldSpecs = useMemo(
+    () => getTemplateFieldSpecs(selectedTemplate, selectedOrgProfile),
+    [selectedTemplate, selectedOrgProfile],
+  );
 
   const customExtraKeys = useMemo(() => {
     const stdKeys = new Set([
@@ -284,7 +429,7 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
   const handlePreview = async () => {
     if (!selectedTemplate) return;
     if (targetMode === 'applyToExistingDocx' && !selectedTargetPath) {
-      onStatusToast('error', 'Vui lòng chọn tệp DOCX từ hàng đợi để áp dụng mẫu.');
+      onStatusToast('error', 'Vui lòng chọn tệp Word để áp dụng mẫu.');
       return;
     }
     setBusy(true);
@@ -298,7 +443,7 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
         const res = await previewWebTemplateApplication(req, selectedOrgProfile, targetItem);
         setPreviewResult(res);
       }
-      onStatusToast('info', 'Đã hoàn tất phân tích 10 bước & kiểm tra tương thích mẫu.');
+      onStatusToast('info', 'Đã cập nhật bản xem trước văn bản.');
     } catch (err) {
       onStatusToast('error', (err as Error).message);
     } finally {
@@ -309,7 +454,7 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
   const handleApplyAndExport = async () => {
     if (!selectedTemplate) return;
     if (targetMode === 'applyToExistingDocx' && !selectedTargetPath) {
-      onStatusToast('error', 'Vui lòng chọn tệp DOCX mục tiêu trước khi áp dụng mẫu.');
+      onStatusToast('error', 'Vui lòng chọn tệp Word trước khi áp dụng mẫu.');
       return;
     }
     setBusy(true);
@@ -332,9 +477,10 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
         setApplyResult(res);
         if (res.preview) setPreviewResult(res.preview);
         if (res.success) {
-          onStatusToast('success', `Đã xuất tệp DOCX hoàn chỉnh: ${res.outputPath}`);
+          onTemplateCreated?.(res, selectedTemplate);
+          onStatusToast('success', `Đã tạo và lưu tệp Word: ${res.outputPath}`);
         } else {
-          onStatusToast('error', res.error || 'Không thể áp dụng mẫu.');
+          onStatusToast('error', res.error || 'Không thể tạo văn bản từ mẫu.');
         }
       } else {
         const targetItem = docxQueueFiles.find((f) => f.path === selectedTargetPath);
@@ -342,10 +488,11 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
         setApplyResult(res);
         if (res.preview) setPreviewResult(res.preview);
         if (res.success && res.blobUrl && res.outputName) {
+          onTemplateCreated?.(res, selectedTemplate);
           triggerBrowserDownload(res.blobUrl, res.outputName);
-          onStatusToast('success', `Đã tạo & tải xuống: ${res.outputName}`);
+          onStatusToast('success', `Đã tạo & tải xuống tệp Word: ${res.outputName}`);
         } else if (!res.success) {
-          onStatusToast('error', res.error || 'Không thể áp dụng mẫu.');
+          onStatusToast('error', res.error || 'Không thể tạo văn bản từ mẫu.');
         }
       }
     } catch (err) {
@@ -591,52 +738,55 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
       />
 
       {/* Top Header + Sub-Navigation */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm space-y-3">
+      <div className="mw-panel p-4 sm:p-5 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-base font-bold flex items-center gap-2">
-              <LayoutTemplate className="w-5 h-5 text-blue-600" />
-              Template Engine — Thư viện &amp; Thiết kế Mẫu văn bản
+            <h2 className="text-base font-bold flex items-center gap-2 text-[var(--mw-ink)]">
+              <LayoutTemplate className="w-5 h-5 text-[var(--mw-accent)]" />
+              {adminMode ? 'Template Engine — Thư viện & Thiết kế Mẫu văn bản' : 'Mẫu văn bản'}
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Kế thừa Organization Profile (Phase 1), Header Builder (Phase 2) và Kiểm chuẩn NĐ 30 (Phase 3) · Hiện có{' '}
-              <strong>{catalog.templates.length}</strong> mẫu.
+            <p className="text-xs text-[var(--mw-muted)] mt-0.5">
+              {adminMode
+                ? `Kế thừa Organization Profile, Header Builder và Kiểm chuẩn NĐ 30 · Hiện có ${catalog.templates.length} mẫu.`
+                : 'Chọn mẫu văn bản phổ biến, điền các thông tin cần thiết, xem trước và lưu thành tệp Word.'}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            {(
-              [
-                { id: 'apply', label: 'Thư viện & Áp dụng', icon: Play },
-                { id: 'designer', label: 'Template Designer', icon: Pencil },
-                { id: 'versions', label: `Phiên bản (${versions.length})`, icon: History },
-              ] as const
-            ).map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setSubTab(tab.id)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
-                    subTab === tab.id
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
+          {adminMode && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(
+                [
+                  { id: 'apply', label: 'Thư viện & Áp dụng', icon: Play },
+                  { id: 'designer', label: 'Template Designer', icon: Pencil },
+                  { id: 'versions', label: `Phiên bản (${versions.length})`, icon: History },
+                ] as const
+              ).map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setSubTab(tab.id)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+                      subTab === tab.id
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        {/* Group Filter + Quick Designer Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+        {/* Step 1 Toolbar: Popular + Group Filter + Search */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[var(--mw-border)]">
           <div className="flex flex-wrap items-center gap-1.5">
             {(
               [
-                { id: 'all', label: `Tất cả (${catalog.templates.length})` },
+                { id: 'popular', label: `Mẫu phổ biến (${POPULAR_TEMPLATE_ORDER.length})` },
                 {
                   id: 'administrative',
                   label: `Hành chính (${catalog.templates.filter((t) => t.group === 'administrative').length})`,
@@ -645,10 +795,15 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
                   id: 'enterprise',
                   label: `Doanh nghiệp (${catalog.templates.filter((t) => t.group === 'enterprise').length})`,
                 },
-                {
-                  id: 'mine',
-                  label: `Mẫu người dùng (${catalog.templates.filter((t) => !t.isSystem).length})`,
-                },
+                ...(adminMode
+                  ? [
+                      { id: 'all' as GroupFilter, label: `Tất cả (${catalog.templates.length})` },
+                      {
+                        id: 'mine' as GroupFilter,
+                        label: `Mẫu người dùng (${catalog.templates.filter((t) => !t.isSystem).length})`,
+                      },
+                    ]
+                  : []),
               ] as { id: GroupFilter; label: string }[]
             ).map((g) => (
               <button
@@ -657,8 +812,8 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
                 onClick={() => setGroupFilter(g.id)}
                 className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${
                   groupFilter === g.id
-                    ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                    ? 'bg-[var(--mw-accent)] text-[var(--mw-accent-ink)]'
+                    : 'bg-[var(--mw-canvas)] text-[var(--mw-muted)] hover:text-[var(--mw-ink)]'
                 }`}
               >
                 {g.label}
@@ -668,31 +823,35 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
 
           <div className="flex flex-wrap items-center gap-2">
             <input
-              type="text"
+              type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm tên mẫu, ký hiệu..."
-              className="px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs w-44"
+              placeholder="Tìm mẫu văn bản..."
+              className="px-2.5 py-1 rounded-lg border border-[var(--mw-border)] text-xs w-52"
             />
-            <button
-              type="button"
-              onClick={handleCreateBlankUserTemplate}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold"
-            >
-              <Plus className="w-3.5 h-3.5" /> Tạo mẫu
-            </button>
-            <button
-              type="button"
-              onClick={() => setImportModalOpen((o) => !o)}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold"
-            >
-              <Upload className="w-3.5 h-3.5 text-indigo-500" /> Nhập mẫu DOCX
-            </button>
+            {adminMode && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleCreateBlankUserTemplate}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Tạo mẫu
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImportModalOpen((o) => !o)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold"
+                >
+                  <Upload className="w-3.5 h-3.5 text-indigo-500" /> Nhập mẫu DOCX
+                </button>
+              </>
+            )}
           </div>
         </div>
 
         {/* Inline Import DOCX Metadata Box */}
-        {importModalOpen && (
+        {adminMode && importModalOpen && (
           <div className="rounded-xl border border-indigo-200 dark:border-indigo-900 bg-indigo-50/70 dark:bg-indigo-950/30 p-3 space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="text-xs font-bold text-indigo-800 dark:text-indigo-200">
@@ -751,156 +910,210 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
         )}
       </div>
 
-      {/* Template Grid Selector */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2.5 max-h-64 overflow-y-auto pr-1">
-        {filteredTemplates.map((tpl) => {
-          const active = selectedTemplate?.templateId === tpl.templateId;
-          return (
-            <button
-              key={tpl.templateId}
-              type="button"
-              onClick={() => setSelectedId(tpl.templateId)}
-              className={`text-left rounded-xl border p-3 transition-all ${
-                active
-                  ? 'border-blue-600 bg-blue-50/70 dark:bg-blue-950/30 ring-1 ring-blue-500'
-                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-blue-300'
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <span className="text-xs font-bold text-slate-900 dark:text-slate-100 line-clamp-1">
-                  {tpl.name}
-                </span>
-                <div className="flex items-center gap-1 shrink-0">
-                  {tpl.isDefaultForDocType && (
-                    <span title="Mặc định cho loại văn bản này" className="text-amber-500">
-                      <Star className="w-3.5 h-3.5 fill-current" />
+      {/* 1. CHỌN MẪU */}
+      <section className="space-y-2">
+        <div className="text-xs font-bold text-[var(--mw-ink)]">
+          1. Chọn mẫu văn bản ({filteredTemplates.length})
+        </div>
+        {filteredTemplates.length === 0 ? (
+          <div className="mw-panel p-5 text-center text-xs text-[var(--mw-muted)]">
+            Không tìm thấy mẫu phù hợp với từ khóa &quot;{searchQuery}&quot;.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2.5 max-h-64 overflow-y-auto pr-1">
+            {filteredTemplates.map((tpl) => {
+              const active = selectedTemplate?.templateId === tpl.templateId;
+              return (
+                <button
+                  key={tpl.templateId}
+                  type="button"
+                  onClick={() => setSelectedId(tpl.templateId)}
+                  className={`text-left rounded-xl border p-3 transition-colors ${
+                    active
+                      ? 'border-[var(--mw-accent)] bg-[var(--mw-tint)] ring-1 ring-[var(--mw-focus)]'
+                      : 'border-[var(--mw-border)] bg-[var(--mw-surface)] hover:border-[var(--mw-focus)]'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-1.5">
+                    <span className="text-xs font-bold text-[var(--mw-ink)] line-clamp-1">
+                      {tpl.name}
                     </span>
-                  )}
-                  <span
-                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                      tpl.isSystem
-                        ? 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
-                        : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
-                    }`}
-                  >
-                    {tpl.isSystem ? 'Hệ thống' : 'Người dùng'}
-                  </span>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[10px] text-slate-500 dark:text-slate-400">
-                <span className="font-mono font-semibold text-blue-600 dark:text-blue-400">
-                  {tpl.headerConfig.symbolPrefix || tpl.docType}
-                </span>
-                <span>·</span>
-                <span>{GROUP_LABELS[tpl.group]}</span>
-                <span>·</span>
-                <span>v{tpl.version}</span>
-                {tpl.sourceDocxAssetId && (
-                  <>
-                    <span>·</span>
-                    <span className="text-indigo-600 dark:text-indigo-400 font-semibold">DOCX gốc</span>
-                  </>
-                )}
-              </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
-                {tpl.description || `${tpl.contentStructure.length} thành phần nội dung`}
-              </p>
-            </button>
-          );
-        })}
-      </div>
+                    {adminMode && tpl.isDefaultForDocType && (
+                      <span title="Mặc định" className="text-amber-500 shrink-0">
+                        <Star className="w-3.5 h-3.5 fill-current" />
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-1 text-[10px] font-semibold text-[var(--mw-accent)]">
+                    {GROUP_LABELS[tpl.group]}
+                    {adminMode ? ` · ${tpl.headerConfig.symbolPrefix || tpl.docType} · v${tpl.version}` : ''}
+                  </div>
+                  <p className="text-[11px] text-[var(--mw-muted)] mt-1 line-clamp-2">
+                    {tpl.description || `${tpl.contentStructure.length} thành phần nội dung`}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       {/* =================================================================== */}
       {/* SUBTAB 1: APPLY & PREVIEW WORKSPACE                                 */}
       {/* =================================================================== */}
       {subTab === 'apply' && selectedTemplate && (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
-          {/* Left Configuration Column */}
+          {/* Cột trái: Giới thiệu mẫu & Điền thông tin */}
           <div className="xl:col-span-6 space-y-3">
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3">
+            {/* 2. Xem giới thiệu mẫu */}
+            <div className="mw-panel p-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="text-sm font-bold">1. Hồ sơ Tổ chức &amp; Đích áp dụng</h3>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => void handleCloneTemplate(selectedTemplate.templateId)}
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-[11px] font-semibold"
-                    title="Sao chép mẫu để tùy chỉnh riêng"
+                <h3 className="text-sm font-bold text-[var(--mw-ink)]">
+                  2. Giới thiệu mẫu: {selectedTemplate.name}
+                </h3>
+                {adminMode && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => void handleCloneTemplate(selectedTemplate.templateId)}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-[11px] font-semibold"
+                    >
+                      <Copy className="w-3 h-3" /> Sao chép
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleExportDocxMaster(selectedTemplate.templateId)}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-[11px] font-semibold"
+                    >
+                      <Download className="w-3 h-3" /> Xuất mẫu DOCX
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <p className="text-xs text-[var(--mw-muted)] leading-5">
+                {selectedTemplate.description || 'Mẫu văn bản chuẩn sẵn sàng điền thông tin và xuất ra tệp Word.'}
+              </p>
+
+              {/* Hồ sơ cơ quan tự động áp dụng */}
+              <div className="grid grid-cols-1 gap-2">
+                <label className="block text-xs space-y-1">
+                  <span className="font-semibold text-[var(--mw-ink)]">
+                    Hồ sơ cơ quan áp dụng
+                  </span>
+                  <select
+                    value={selectedOrgId}
+                    onChange={(e) => setSelectedOrgId(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-[var(--mw-border)] text-xs"
                   >
-                    <Copy className="w-3 h-3" /> Sao chép
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleExportDocxMaster(selectedTemplate.templateId)}
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-[11px] font-semibold"
-                    title="Xuất tệp DOCX mẫu gốc"
-                  >
-                    <Download className="w-3 h-3" /> Xuất mẫu DOCX
-                  </button>
+                    <option value="">-- Tự nhập thông tin bên dưới --</option>
+                    {orgProfiles.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.profileName} — {o.issuingOrg}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              {/* Thành phần bố cục trong mẫu */}
+              <div className="space-y-1.5 pt-1">
+                <div className="text-xs font-semibold text-[var(--mw-ink)]">
+                  Thành phần trong mẫu ({selectedTemplate.contentStructure.length} phần)
+                </div>
+                <div className="space-y-1 max-h-44 overflow-y-auto pr-1">
+                  {selectedTemplate.contentStructure.map((sec) => {
+                    const checked = sec.required || enabledSectionIds.includes(sec.sectionId);
+                    return (
+                      <label
+                        key={sec.sectionId}
+                        className={`flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border text-xs ${
+                          checked
+                            ? 'border-[var(--mw-border)] bg-[var(--mw-canvas)]'
+                            : 'border-dashed border-[var(--mw-border)] opacity-65'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={sec.required}
+                            onChange={() => toggleSection(sec)}
+                          />
+                          <span className="font-medium truncate">
+                            {sec.title ||
+                              (sec.kind === 'recipientSalutation'
+                                ? 'Phần Kính gửi / Nơi nhận'
+                                : sec.kind === 'preambleBasis'
+                                  ? 'Căn cứ ban hành'
+                                  : sec.kind === 'authorityHeading'
+                                    ? 'Thẩm quyền ký ban hành'
+                                    : sec.kind === 'decisionKeyword'
+                                      ? 'Từ khóa Quyết định'
+                                      : sec.inlineTable
+                                        ? `Bảng: ${sec.inlineTable.columns.map((c) => c.header).join(' · ')}`
+                                        : (sec.bodyParagraphs[0] || 'Phần nội dung')
+                                            .replace(/\{\{[^}]+\}\}/g, '...')
+                                            .replace(/^\[Hướng dẫn nhập[^:]*:\s*/i, '')
+                                            .replace(/\]$/, '')
+                                            .slice(0, 60))}
+                          </span>
+                        </span>
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 inline-flex items-center gap-1 ${
+                            sec.required
+                              ? 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                              : 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300'
+                          }`}
+                        >
+                          {sec.required && <Lock className="w-2.5 h-2.5" />}
+                          {sec.required ? 'Bắt buộc' : 'Tùy chọn'}
+                        </span>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
-                  Hồ sơ Tổ chức (Phase 1 — hỗ trợ đa hồ sơ)
-                </label>
-                <select
-                  value={selectedOrgId}
-                  onChange={(e) => setSelectedOrgId(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs"
-                >
-                  <option value="">-- Chưa chọn Hồ sơ (dùng nhập tay / đánh dấu trường thiếu) --</option>
-                  {orgProfiles.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.profileName} — {o.issuingOrg} ({o.sector})
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {adminMode && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-[var(--mw-border)]">
+                  <button
+                    type="button"
+                    onClick={() => setTargetMode('createNewDocx')}
+                    className={`p-2 rounded-xl border text-left text-xs ${
+                      targetMode === 'createNewDocx'
+                        ? 'border-blue-600 bg-blue-50/70 dark:bg-blue-950/30 font-bold text-blue-700'
+                        : 'border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <FilePlus2 className="w-3.5 h-3.5" /> Tạo tệp DOCX mới
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTargetMode('applyToExistingDocx')}
+                    className={`p-2 rounded-xl border text-left text-xs ${
+                      targetMode === 'applyToExistingDocx'
+                        ? 'border-blue-600 bg-blue-50/70 dark:bg-blue-950/30 font-bold text-blue-700'
+                        : 'border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <FolderOpen className="w-3.5 h-3.5" /> Áp dụng vào DOCX sẵn có
+                    </div>
+                  </button>
+                </div>
+              )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setTargetMode('createNewDocx')}
-                  className={`p-2.5 rounded-xl border text-left text-xs ${
-                    targetMode === 'createNewDocx'
-                      ? 'border-blue-600 bg-blue-50/70 dark:bg-blue-950/30 font-bold text-blue-700 dark:text-blue-300'
-                      : 'border-slate-200 dark:border-slate-700'
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5">
-                    <FilePlus2 className="w-3.5 h-3.5" /> Tạo tệp DOCX mới
-                  </div>
-                  <div className="text-[10px] font-normal text-slate-500 mt-0.5">
-                    Khởi tạo văn bản hoàn chỉnh từ mẫu
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTargetMode('applyToExistingDocx')}
-                  className={`p-2.5 rounded-xl border text-left text-xs ${
-                    targetMode === 'applyToExistingDocx'
-                      ? 'border-blue-600 bg-blue-50/70 dark:bg-blue-950/30 font-bold text-blue-700 dark:text-blue-300'
-                      : 'border-slate-200 dark:border-slate-700'
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5">
-                    <FolderOpen className="w-3.5 h-3.5" /> Áp dụng vào DOCX sẵn có
-                  </div>
-                  <div className="text-[10px] font-normal text-slate-500 mt-0.5">
-                    Giữ nguyên bảng, logo, section &amp; điền biến
-                  </div>
-                </button>
-              </div>
-
-              {targetMode === 'applyToExistingDocx' && (
-                <div className="rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 p-2.5 space-y-2">
+              {adminMode && targetMode === 'applyToExistingDocx' && (
+                <div className="rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 p-2.5 space-y-2 text-xs">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-semibold">Tệp DOCX mục tiêu:</span>
+                    <span className="font-semibold">Tệp DOCX mục tiêu:</span>
                     <button
                       type="button"
                       onClick={onPickFiles}
-                      className="text-[11px] font-bold text-blue-600 hover:underline"
+                      className="font-bold text-blue-600 hover:underline"
                     >
                       + Mở thêm DOCX
                     </button>
@@ -908,7 +1121,7 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
                   <select
                     value={selectedTargetPath}
                     onChange={(e) => setSelectedTargetPath(e.target.value)}
-                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+                    className="w-full px-2.5 py-1.5 rounded-lg border text-xs"
                   >
                     {docxQueueFiles.length === 0 && (
                       <option value="">(Hàng đợi chưa có tệp .docx / .docm)</option>
@@ -926,189 +1139,113 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
                         checked={insertFramingOnExisting}
                         onChange={(e) => setInsertFramingOnExisting(e.target.checked)}
                       />
-                      Chèn khung chữ ký nếu tệp gốc chưa có
+                      Chèn khung chữ ký nếu chưa có
                     </label>
                     <select
                       value={outputMode}
                       onChange={(e) => setOutputMode(e.target.value as OutputMode)}
-                      className="px-2 py-1 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+                      className="px-2 py-1 rounded border"
                     >
-                      <option value="newCopy">Tạo bản sao (_TheoMau)</option>
-                      <option value="overwriteWithBackup">Ghi đè + Backup (.bak)</option>
+                      <option value="newCopy">Tạo bản sao</option>
+                      <option value="overwriteWithBackup">Ghi đè + Backup</option>
                     </select>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Dynamic Fields */}
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold">2. Dữ liệu động (Dynamic Fields)</h3>
-                <button
-                  type="button"
-                  onClick={() => setDynamicFields(EMPTY_DYNAMIC_FIELDS)}
-                  className="text-[11px] text-slate-500 hover:text-slate-800"
-                >
-                  Xóa trắng để kiểm tra đánh dấu thiếu
-                </button>
+            {/* 3. Điền các thông tin cần thiết */}
+            <div className="mw-panel p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-bold text-[var(--mw-ink)]">
+                    3. Điền các thông tin cần thiết
+                  </h3>
+                  <p className="text-[11px] text-[var(--mw-muted)]">
+                    Các trường có dấu <span className="text-rose-600 font-bold">*</span> là thông tin cốt lõi của mẫu. Thông tin cơ quan đã lưu được tự điền sẵn để bạn chỉnh sửa nhanh.
+                  </p>
+                </div>
+                {adminMode && (
+                  <button
+                    type="button"
+                    onClick={() => setDynamicFields(EMPTY_DYNAMIC_FIELDS)}
+                    className="text-[11px] text-[var(--mw-muted)] hover:underline"
+                  >
+                    Xóa trắng trường
+                  </button>
+                )}
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Trường nào chưa nhập (và không có trong Hồ sơ Tổ chức) sẽ được đánh dấu{' '}
-                <code className="px-1 rounded bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-200">
-                  [CHƯA NHẬP: ...]
-                </code>
-                , không tự điền thông tin giả.
-              </p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                <input
-                  type="text"
-                  value={dynamicFields.tenCoQuan}
-                  onChange={(e) => setDynamicFields({ ...dynamicFields, tenCoQuan: e.target.value })}
-                  placeholder={selectedOrgProfile?.issuingOrg || 'Tên cơ quan (lấy từ Hồ sơ nếu trống)'}
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                />
-                <input
-                  type="text"
-                  value={dynamicFields.soVanBan}
-                  onChange={(e) => setDynamicFields({ ...dynamicFields, soVanBan: e.target.value })}
-                  placeholder="Số văn bản (vd: 125 hoặc 125/QĐ-UBND)"
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                />
-                <input
-                  type="text"
-                  value={dynamicFields.diaDanh}
-                  onChange={(e) => setDynamicFields({ ...dynamicFields, diaDanh: e.target.value })}
-                  placeholder={selectedOrgProfile?.defaultLocation || 'Địa danh ban hành'}
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                />
-                <input
-                  type="text"
-                  value={dynamicFields.ngayThang}
-                  onChange={(e) => setDynamicFields({ ...dynamicFields, ngayThang: e.target.value })}
-                  placeholder="Ngày tháng (vd: 05/02/2026)"
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                />
-                <input
-                  type="text"
-                  value={dynamicFields.chucVu}
-                  onChange={(e) => setDynamicFields({ ...dynamicFields, chucVu: e.target.value })}
-                  placeholder="Chức vụ người ký"
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                />
-                <input
-                  type="text"
-                  value={dynamicFields.nguoiKy}
-                  onChange={(e) => setDynamicFields({ ...dynamicFields, nguoiKy: e.target.value })}
-                  placeholder="Họ và tên người ký"
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
-                />
-                <input
-                  type="text"
-                  value={dynamicFields.nguoiNhan}
-                  onChange={(e) => setDynamicFields({ ...dynamicFields, nguoiNhan: e.target.value })}
-                  placeholder="Người nhận / Kính gửi"
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 sm:col-span-2"
-                />
-                <input
-                  type="text"
-                  value={dynamicFields.trichYeu}
-                  onChange={(e) => setDynamicFields({ ...dynamicFields, trichYeu: e.target.value })}
-                  placeholder="Trích yếu nội dung văn bản"
-                  className="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 sm:col-span-2"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                {fieldSpecs.map((spec) => (
+                  <label
+                    key={spec.key}
+                    className={`block space-y-1 ${spec.fullWidth ? 'sm:col-span-2' : ''}`}
+                  >
+                    <span className="font-semibold text-[var(--mw-ink)]">
+                      {spec.label}
+                      {spec.required && (
+                        <span className="ml-1 text-rose-600" aria-label="Bắt buộc">
+                          *
+                        </span>
+                      )}
+                    </span>
+                    <input
+                      type="text"
+                      value={String(dynamicFields[spec.key] || '')}
+                      onChange={(e) =>
+                        setDynamicFields({ ...dynamicFields, [spec.key]: e.target.value })
+                      }
+                      placeholder={spec.placeholder}
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-[var(--mw-border)] text-xs"
+                    />
+                  </label>
+                ))}
                 {customExtraKeys.map((ek) => (
-                  <input
-                    key={ek}
-                    type="text"
-                    value={dynamicFields.extraFields[ek] || ''}
-                    onChange={(e) =>
-                      setDynamicFields({
-                        ...dynamicFields,
-                        extraFields: { ...dynamicFields.extraFields, [ek]: e.target.value },
-                      })
-                    }
-                    placeholder={`Trường tùy chỉnh: {{${ek}}}`}
-                    className="px-2.5 py-1.5 rounded-lg border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-slate-950"
-                  />
+                  <label key={ek} className="block space-y-1">
+                    <span className="font-semibold text-[var(--mw-ink)]">
+                      Thông tin bổ sung ({ek})
+                    </span>
+                    <input
+                      type="text"
+                      value={dynamicFields.extraFields[ek] || ''}
+                      onChange={(e) =>
+                        setDynamicFields({
+                          ...dynamicFields,
+                          extraFields: { ...dynamicFields.extraFields, [ek]: e.target.value },
+                        })
+                      }
+                      placeholder={`Nhập nội dung cho mục ${ek}`}
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-[var(--mw-border)] text-xs"
+                    />
+                  </label>
                 ))}
               </div>
-            </div>
 
-            {/* Required vs Optional Sections */}
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-2">
-              <h3 className="text-sm font-bold">3. Thành phần bắt buộc &amp; tùy chọn</h3>
-              <div className="space-y-1.5">
-                {selectedTemplate.contentStructure.map((sec) => {
-                  const checked = sec.required || enabledSectionIds.includes(sec.sectionId);
-                  return (
-                    <label
-                      key={sec.sectionId}
-                      className={`flex items-start justify-between gap-2 p-2 rounded-lg border text-xs ${
-                        checked
-                          ? 'border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-950/40'
-                          : 'border-dashed border-slate-200 dark:border-slate-800 opacity-65'
-                      }`}
-                    >
-                      <span className="flex items-start gap-2">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          disabled={sec.required}
-                          onChange={() => toggleSection(sec)}
-                          className="mt-0.5"
-                        />
-                        <span>
-                          <span className="font-semibold block">
-                            {sec.title || `(${sec.kind})`}
-                          </span>
-                          <span className="text-[11px] text-slate-500 line-clamp-1">
-                            {sec.inlineTable
-                              ? `Bảng biểu: ${sec.inlineTable.columns.map((c) => c.header).join(' | ')}`
-                              : sec.bodyParagraphs[0] || ''}
-                          </span>
-                        </span>
-                      </span>
-                      <span
-                        className={`px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 inline-flex items-center gap-1 ${
-                          sec.required
-                            ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
-                            : 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300'
-                        }`}
-                      >
-                        {sec.required && <Lock className="w-2.5 h-2.5" />}
-                        {sec.required ? 'Bắt buộc' : 'Tùy chọn'}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 pt-2">
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[var(--mw-border)]">
                 <button
                   type="button"
                   disabled={busy}
                   onClick={() => void handlePreview()}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-xs font-bold"
+                  className="mw-button mw-button-secondary"
                 >
-                  <Eye className="w-4 h-4 text-indigo-500" />
-                  Xem trước &amp; Kiểm tra (Bước 1–9)
+                  <Eye className="w-4 h-4 text-[var(--mw-accent)]" />
+                  Xem trước văn bản
                 </button>
                 <button
                   type="button"
                   disabled={busy}
                   onClick={() => void handleApplyAndExport()}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm disabled:opacity-50"
+                  className="mw-button mw-button-primary px-4 py-2"
                 >
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  {targetMode === 'createNewDocx' ? 'Xuất DOCX từ mẫu (Bước 10)' : 'Áp dụng vào DOCX'}
+                  <Save className="w-4 h-4" />
+                  Tạo và lưu file Word
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Right Preview & Result Column */}
+          {/* Cột phải: 4. Xem trước & 5. Kết quả file Word */}
           <div className="xl:col-span-6 space-y-3">
             {applyResult && (
               <div
@@ -1121,26 +1258,41 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-bold flex items-center gap-1.5">
                     <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    {applyResult.success ? 'Xuất DOCX & Xác minh Hậu lưu Đạt' : 'Lỗi xuất mẫu'}
+                    {applyResult.success ? '5. Đã tạo và lưu file Word thành công' : 'Không thể tạo tệp'}
                   </span>
                   <span className="text-[11px] font-mono">
                     {Math.max(1, Math.round(applyResult.outputSizeBytes / 1024))} KB
                   </span>
                 </div>
                 <div className="text-xs break-all text-slate-700 dark:text-slate-200">
-                  {applyResult.outputPath || applyResult.error}
+                  {applyResult.outputPath || applyResult.outputName || applyResult.error}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 pt-1">
                   {isNative && applyResult.success && applyResult.outputPath && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        void bridge.invoke('open_file', { path: applyResult.outputPath })
-                      }
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900 text-white text-[11px] font-bold"
-                    >
-                      <ExternalLink className="w-3 h-3" /> Mở bằng Word
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void bridge
+                            .invoke('open_path', { path: applyResult.outputPath, reveal: false })
+                            .catch((err) => onStatusToast('error', String(err)))
+                        }
+                        className="mw-button mw-button-primary text-xs"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" /> Mở bằng Word
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void bridge
+                            .invoke('open_path', { path: applyResult.outputPath, reveal: true })
+                            .catch((err) => onStatusToast('error', String(err)))
+                        }
+                        className="mw-button mw-button-secondary text-xs"
+                      >
+                        <FolderOpen className="w-3.5 h-3.5" /> Mở thư mục
+                      </button>
+                    </>
                   )}
                   {!isNative && applyResult.blobUrl && applyResult.outputName && (
                     <>
@@ -1149,9 +1301,9 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
                         onClick={() =>
                           triggerBrowserDownload(applyResult.blobUrl!, applyResult.outputName!)
                         }
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold"
+                        className="mw-button mw-button-primary text-xs"
                       >
-                        <Download className="w-3 h-3" /> Tải lại DOCX
+                        <Download className="w-3.5 h-3.5" /> Tải lại file Word
                       </button>
                       {applyResult.outputBlob && (
                         <button
@@ -1163,9 +1315,9 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
                               applyResult.blobUrl,
                             )
                           }
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-800 text-[11px] font-bold"
+                          className="mw-button mw-button-secondary text-xs"
                         >
-                          <Share2 className="w-3 h-3" /> Chia sẻ
+                          <Share2 className="w-3.5 h-3.5" /> Chia sẻ
                         </button>
                       )}
                     </>
@@ -1174,9 +1326,9 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
                     <button
                       type="button"
                       onClick={() => void handleRestoreTargetBackup()}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-amber-400 bg-amber-100 text-amber-900 text-[11px] font-bold"
+                      className="mw-button mw-button-secondary text-xs"
                     >
-                      <RotateCcw className="w-3 h-3" /> Khôi phục bản gốc
+                      <RotateCcw className="w-3.5 h-3.5" /> Khôi phục bản gốc
                     </button>
                   )}
                 </div>
@@ -1184,18 +1336,21 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
             )}
 
             {previewResult ? (
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3">
+              <div className="mw-panel p-4 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-sm font-bold">Bản xem trước 10 bước &amp; Tương thích</h3>
+                  <h3 className="text-sm font-bold text-[var(--mw-ink)]">
+                    4. Xem trước nội dung văn bản
+                  </h3>
                   <span
                     className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                      previewResult.compatibility.compatible
+                      previewResult.compatibility.missingFields.length === 0
                         ? 'bg-emerald-100 text-emerald-700'
                         : 'bg-amber-100 text-amber-800'
                     }`}
                   >
-                    {previewResult.compatibility.passedRules} đạt ·{' '}
-                    {previewResult.compatibility.failedRules} cảnh báo
+                    {previewResult.compatibility.missingFields.length === 0
+                      ? 'Thông tin đầy đủ'
+                      : `Còn ${previewResult.compatibility.missingFields.length} mục chưa điền`}
                   </span>
                 </div>
 
@@ -1203,20 +1358,19 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
                   <div className="rounded-xl border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3 space-y-1">
                     <div className="text-xs font-bold text-amber-800 dark:text-amber-200 flex items-center gap-1.5">
                       <AlertTriangle className="w-4 h-4 shrink-0" />
-                      Các trường chưa có dữ liệu ({previewResult.compatibility.missingFields.length})
+                      Các mục chưa nhập thông tin ({previewResult.compatibility.missingFields.length})
                     </div>
                     <ul className="text-[11px] text-amber-900 dark:text-amber-300 space-y-0.5">
                       {previewResult.compatibility.missingFields.map((m) => (
                         <li key={m.fieldKey}>
-                          <strong>{m.labelVi}:</strong>{' '}
-                          <span className="font-mono">{m.markerText}</span>
+                          <strong>{m.labelVi}:</strong> sẽ giữ chỗ để bạn bổ sung sau trong Word
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
 
-                {/* Mini A4 Preview Sheet */}
+                {/* Bản xem trước bố cục trang văn bản */}
                 <div className="rounded-xl border border-slate-300 dark:border-slate-700 bg-white text-slate-900 p-5 font-serif text-[12px] space-y-3 shadow-inner">
                   <div className="grid grid-cols-2 gap-3 text-center">
                     <div className="space-y-0.5">
@@ -1318,35 +1472,32 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
                   </div>
                 </div>
 
-                {/* 10-step trace */}
-                <details className="text-xs">
-                  <summary className="cursor-pointer font-semibold text-slate-600 dark:text-slate-300">
-                    Chi tiết 10 bước áp dụng mẫu &amp; Tài sản OpenXML bảo toàn
-                  </summary>
-                  <div className="mt-2 space-y-1 text-[11px] text-slate-600 dark:text-slate-300">
-                    {previewResult.pipelineSteps.map((s) => (
-                      <div key={s.stepNumber} className="flex items-start gap-2">
-                        <span className="font-mono font-bold text-blue-600">{s.stepNumber}.</span>
-                        <span>
-                          <strong>{s.stepName}:</strong> {s.detail}
-                        </span>
-                      </div>
-                    ))}
-                    <div className="pt-1 border-t border-slate-200 dark:border-slate-700 font-mono text-[10px]">
-                      Media: {previewResult.compatibility.preservedAssets.mediaCount} · Drawings:{' '}
-                      {previewResult.compatibility.preservedAssets.drawingCount} · Hyperlinks:{' '}
-                      {previewResult.compatibility.preservedAssets.hyperlinkCount} · VBA:{' '}
-                      {previewResult.compatibility.preservedAssets.hasVbaMacros ? 'Có (giữ nguyên)' : 'Không'}
+                {adminMode && (
+                  <details className="text-xs">
+                    <summary className="cursor-pointer font-semibold text-slate-600 dark:text-slate-300">
+                      Chi tiết 10 bước &amp; Tài sản OpenXML bảo toàn (?admin=1)
+                    </summary>
+                    <div className="mt-2 space-y-1 text-[11px] text-slate-600 dark:text-slate-300">
+                      {previewResult.pipelineSteps.map((s) => (
+                        <div key={s.stepNumber} className="flex items-start gap-2">
+                          <span className="font-mono font-bold text-blue-600">{s.stepNumber}.</span>
+                          <span>
+                            <strong>{s.stepName}:</strong> {s.detail}
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                </details>
+                  </details>
+                )}
               </div>
             ) : (
-              <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/40 p-6 text-center space-y-2">
-                <LayoutTemplate className="w-8 h-8 text-blue-500 mx-auto" />
-                <div className="text-sm font-bold">{selectedTemplate.name}</div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Bấm <strong>Xem trước &amp; Kiểm tra (Bước 1–9)</strong> để kiểm tra cấu trúc bố cục, đánh dấu dữ liệu thiếu và tính tương thích NĐ 30 trước khi xuất DOCX.
+              <div className="mw-panel p-6 text-center space-y-2">
+                <LayoutTemplate className="w-8 h-8 text-[var(--mw-accent)] mx-auto" />
+                <div className="text-sm font-bold text-[var(--mw-ink)]">
+                  4. Xem trước &amp; 5. Tạo file Word
+                </div>
+                <p className="text-xs text-[var(--mw-muted)]">
+                  Sau khi điền thông tin ở cột bên trái, bấm <strong>Xem trước văn bản</strong> để rà soát hoặc bấm <strong>Tạo và lưu file Word</strong> để xuất tệp ngay.
                 </p>
               </div>
             )}

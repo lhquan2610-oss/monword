@@ -753,6 +753,58 @@ fn dispatch_background_command(req: &IpcRequest, proxy: &EventLoopProxy<UserEven
                 Err(e) => err(e),
             }
         }
+        "save_output_as" => {
+            let source_path = req
+                .payload
+                .get("sourcePath")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let dest_path = req
+                .payload
+                .get("destPath")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            if let Err(e) = validate_safe_filesystem_path(source_path) {
+                return err(e);
+            }
+            if let Err(e) = validate_safe_filesystem_path(dest_path) {
+                return err(e);
+            }
+            let src = Path::new(source_path);
+            if !src.exists() {
+                return err(AppStructuredError::new(
+                    AppErrorCode::ErrFileRead,
+                    format!("Không tìm thấy tệp nguồn để lưu: {}", source_path),
+                )
+                .format_user_message());
+            }
+            let dst = Path::new(dest_path);
+            let ext = dst
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("")
+                .to_ascii_lowercase();
+            if !matches!(ext.as_str(), "docx" | "docm") {
+                return err(AppStructuredError::new(
+                    AppErrorCode::ErrIpcInvalid,
+                    "Định dạng tệp đích chỉ hỗ trợ .docx hoặc .docm.".to_string(),
+                )
+                .format_user_message());
+            }
+            if let Some(parent) = dst.parent() {
+                if !parent.as_os_str().is_empty() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+            }
+            match std::fs::copy(src, dst) {
+                Ok(_) => ok(serde_json::json!({ "outputPath": dest_path })),
+                Err(e) => err(AppStructuredError::new(
+                    AppErrorCode::ErrFileWrite,
+                    format!("Không thể lưu tệp sang vị trí mới: {}", e),
+                )
+                .format_user_message()),
+            }
+        }
         "list_templates" => {
             let store = template_engine::TemplateStore::default_store();
             match store.list_catalog() {

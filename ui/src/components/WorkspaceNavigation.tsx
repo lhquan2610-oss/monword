@@ -1,7 +1,6 @@
 import {
   BookOpen,
   Building2,
-  ChevronRight,
   Eye,
   FileCheck2,
   History,
@@ -9,8 +8,8 @@ import {
   LayoutTemplate,
   ScanSearch,
   SearchCheck,
+  Settings2,
   Shield,
-  SlidersHorizontal,
   Sparkles,
   Type,
   Wrench,
@@ -165,18 +164,20 @@ interface WorkspaceNavigationProps {
 }
 
 export function WorkspaceNavigation({ activeTab, onSelect, hideHome }: WorkspaceNavigationProps) {
-  const inAdvancedArea = activeTab === 'advancedSettings' || isAdvancedSubTab(activeTab);
+  const effectiveTab: NavTab = activeTab === 'livePreview' ? 'standardizer' : activeTab;
+  const inSettingsArea =
+    activeTab === 'advancedSettings' ||
+    (activeTab !== 'livePreview' && isAdvancedSubTab(activeTab));
   const visiblePrimaryItems = PRIMARY_NAV_ITEMS.filter(({ id }) => !hideHome || id !== 'home');
-  const advancedItems = ADVANCED_NAV_GROUPS.flatMap((group) => group.items);
 
   return (
-    <nav aria-label="Menu chính MonWord" className="flex flex-col gap-3">
+    <nav aria-label="Điều hướng chính MonWord" className="flex flex-col gap-3">
       <div role="group" aria-label="Chức năng chính" className="flex flex-wrap gap-1.5 lg:flex-col lg:gap-1">
         {visiblePrimaryItems.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             type="button"
-            aria-current={activeTab === id ? 'page' : undefined}
+            aria-current={effectiveTab === id ? 'page' : undefined}
             className="mw-workspace-link lg:w-full"
             onClick={() => onSelect(id)}
           >
@@ -188,45 +189,18 @@ export function WorkspaceNavigation({ activeTab, onSelect, hideHome }: Workspace
 
       <div
         role="group"
-        aria-label="Cài đặt và nâng cao"
+        aria-label="Cài đặt"
         className="border-t border-[var(--mw-border)] pt-2.5 flex flex-col gap-1"
       >
         <button
           type="button"
-          aria-current={activeTab === 'advancedSettings' ? 'page' : undefined}
-          className={`mw-workspace-link lg:w-full justify-between ${
-            inAdvancedArea && activeTab !== 'advancedSettings'
-              ? 'bg-[var(--mw-tint)]/70 text-[var(--mw-ink)]'
-              : ''
-          }`}
+          aria-current={inSettingsArea ? 'page' : undefined}
+          className="mw-workspace-link lg:w-full"
           onClick={() => onSelect('advancedSettings')}
         >
-          <span className="flex items-center gap-2 min-w-0">
-            <SlidersHorizontal className="size-4 shrink-0" aria-hidden="true" />
-            <span className="truncate">Cài đặt và nâng cao</span>
-          </span>
-          <ChevronRight
-            className={`size-3.5 shrink-0 transition-transform ${inAdvancedArea ? 'rotate-90' : ''}`}
-            aria-hidden="true"
-          />
+          <Settings2 className="size-4 shrink-0" aria-hidden="true" />
+          <span className="truncate">Cài đặt</span>
         </button>
-
-        {inAdvancedArea && (
-          <div className="flex flex-wrap gap-1 lg:flex-col lg:pl-2 lg:border-l lg:border-[var(--mw-border)] lg:ml-2">
-            {advancedItems.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                type="button"
-                aria-current={activeTab === id ? 'page' : undefined}
-                className="mw-workspace-link text-xs py-1 lg:w-full"
-                onClick={() => onSelect(id)}
-              >
-                <Icon className="size-3.5 shrink-0" aria-hidden="true" />
-                <span className="truncate">{label}</span>
-              </button>
-            ))}
-          </div>
-        )}
       </div>
     </nav>
   );

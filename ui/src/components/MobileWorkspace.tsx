@@ -1,5 +1,5 @@
 import { Toast } from './Toast';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Download,
   FileText,
@@ -32,6 +32,7 @@ import { ConfigPanels, type ConfigPanelsProps } from './ConfigPanels';
 import { PlatformSwitcher, VersionOtaPill } from './PlatformSwitcher';
 import { WorkspaceHome } from './WorkspaceHome';
 import { WorkspaceNavigation } from './WorkspaceNavigation';
+import { isAdminToolsEnabled } from '../utils/platform';
 
 type MobileTab = 'home' | 'files' | 'rules' | 'ota';
 
@@ -93,6 +94,13 @@ export const MobileWorkspace: React.FC<MobileWorkspaceProps> = ({
   toast,
 }) => {
   const [mobileTab, setMobileTab] = useState<MobileTab>('home');
+  const adminMode = isAdminToolsEnabled();
+
+  useEffect(() => {
+    if (activeConfigTab === 'home' && mobileTab === 'rules') {
+      setMobileTab('home');
+    }
+  }, [activeConfigTab, mobileTab]);
 
   return (
     <div className="min-h-screen flex flex-col mw-canvas pb-20">
@@ -110,7 +118,7 @@ export const MobileWorkspace: React.FC<MobileWorkspaceProps> = ({
                 currentVersion={currentVersion}
                 updateInfo={updateInfo}
                 onOpenUpdate={onOpenUpdate}
-                editionLabel="Mobile Live OTA"
+                editionLabel="Mobile"
               />
             </div>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
@@ -138,6 +146,7 @@ export const MobileWorkspace: React.FC<MobileWorkspaceProps> = ({
           <>
             <WorkspaceHome
               files={files}
+              recentDocs={configPanelsProps.recentDocs}
               onPickFiles={() => {
                 onPickFiles();
                 setMobileTab('files');
@@ -151,7 +160,8 @@ export const MobileWorkspace: React.FC<MobileWorkspaceProps> = ({
               mobile
             />
 
-            {/* Quick 2x2 Presets Grid */}
+            {/* Quick 2x2 Presets Grid (chỉ hiện ở chế độ quản trị ?admin=1) */}
+            {adminMode && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
@@ -180,17 +190,20 @@ export const MobileWorkspace: React.FC<MobileWorkspaceProps> = ({
                 })}
               </div>
             </div>
+            )}
 
-            {/* Platform Preview Switcher on Mobile */}
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Chuyển giao diện:</span>
-              <PlatformSwitcher
-                edition={edition}
-                override={override}
-                onChangeOverride={onChangeOverride}
-                compact
-              />
-            </div>
+            {/* Platform Preview Switcher on Mobile (chỉ hiện ở chế độ quản trị ?admin=1) */}
+            {adminMode && (
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Chuyển giao diện:</span>
+                <PlatformSwitcher
+                  edition={edition}
+                  override={override}
+                  onChangeOverride={onChangeOverride}
+                  compact
+                />
+              </div>
+            )}
           </>
         )}
 
@@ -239,7 +252,9 @@ export const MobileWorkspace: React.FC<MobileWorkspaceProps> = ({
                               onClick={() => onOpenReport(displayAudit)}
                               className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-700 text-xs font-bold"
                             >
-                              {displayAudit.score} điểm
+                              {displayAudit.issues.length === 0
+                                ? 'Đạt'
+                                : `${displayAudit.issues.length} mục cần sửa`}
                             </button>
                           )}
                           <button
@@ -318,48 +333,49 @@ export const MobileWorkspace: React.FC<MobileWorkspaceProps> = ({
         {mobileTab === 'rules' && (
           <div className="space-y-3">
             <WorkspaceNavigation
-              activeTab={activeConfigTab === 'home' ? 'oneClick' : activeConfigTab}
+              activeTab={activeConfigTab === 'home' ? 'standardizer' : activeConfigTab}
               onSelect={setActiveConfigTab}
               hideHome
             />
-            <ConfigPanels {...configPanelsProps} activeTab={activeConfigTab === 'home' ? 'oneClick' : activeConfigTab} />
+            <ConfigPanels {...configPanelsProps} activeTab={activeConfigTab === 'home' ? 'standardizer' : activeConfigTab} />
           </div>
         )}
 
-        {/* TAB LIVE OTA */}
+        {/* TAB CẬP NHẬT */}
         {mobileTab === 'ota' && (
           <div className="space-y-3">
             <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-3 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-sm font-bold">MonWord Live OTA</div>
+                  <div className="text-sm font-bold">Cập nhật MonWord</div>
                   <div className="text-xs text-slate-500">Phiên bản hiện tại: v{currentVersion}</div>
                 </div>
                 <RefreshCw className="w-5 h-5 text-blue-600" />
               </div>
               <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Khi có quy chuẩn mới hoặc bản cập nhật giao diện từ <span className="font-mono text-blue-600">monword.vercel.app</span>,
-                chỉ cần bấm đồng bộ ngay mà không cần cài lại ứng dụng.
+                Kiểm tra và đồng bộ các quy chuẩn thể thức mới nhất cho MonWord.
               </p>
               <button
                 type="button"
                 onClick={onOpenUpdate}
                 className="mw-button mw-button-primary min-h-11 w-full"
               >
-                Mở Trung tâm Live OTA
+                Kiểm tra cập nhật
               </button>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-2.5 shadow-sm">
-              <div className="text-xs font-bold flex items-center gap-1.5">
-                <Settings2 className="w-4 h-4 text-slate-500" /> Chuyển chế độ hiển thị
+            {adminMode && (
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 space-y-2.5 shadow-sm">
+                <div className="text-xs font-bold flex items-center gap-1.5">
+                  <Settings2 className="w-4 h-4 text-slate-500" /> Chuyển chế độ hiển thị
+                </div>
+                <PlatformSwitcher
+                  edition={edition}
+                  override={override}
+                  onChangeOverride={onChangeOverride}
+                />
               </div>
-              <PlatformSwitcher
-                edition={edition}
-                override={override}
-                onChangeOverride={onChangeOverride}
-              />
-            </div>
+            )}
           </div>
         )}
       </main>
@@ -370,8 +386,8 @@ export const MobileWorkspace: React.FC<MobileWorkspaceProps> = ({
           [
             ['home', 'Trang chủ', <Home key="h" className="w-4 h-4" />],
             ['files', `Tài liệu${files.length > 0 ? ` (${files.length})` : ''}`, <FolderOpen key="f" className="w-4 h-4" />],
-            ['rules', 'Công cụ', <SlidersHorizontal key="r" className="w-4 h-4" />],
-            ['ota', 'Live OTA', <RefreshCw key="o" className="w-4 h-4" />],
+            ['rules', 'Chức năng', <SlidersHorizontal key="r" className="w-4 h-4" />],
+            ['ota', 'Cập nhật', <RefreshCw key="o" className="w-4 h-4" />],
           ] as [MobileTab, string, React.ReactNode][]
         ).map(([id, label, icon]) => {
           const active = mobileTab === id;
@@ -380,7 +396,12 @@ export const MobileWorkspace: React.FC<MobileWorkspaceProps> = ({
               key={id}
               type="button"
               aria-current={active ? 'page' : undefined}
-              onClick={() => setMobileTab(id)}
+              onClick={() => {
+                if (id === 'rules' && activeConfigTab === 'home') {
+                  setActiveConfigTab('standardizer');
+                }
+                setMobileTab(id);
+              }}
               className={`flex flex-col items-center justify-center py-1.5 rounded-xl text-[11px] font-semibold transition-colors ${
                 active ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40' : 'text-slate-500 dark:text-slate-400'
               }`}
