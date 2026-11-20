@@ -8,7 +8,6 @@ import {
   Play,
   RefreshCw,
   SearchCheck,
-  ShieldCheck,
   Sun,
   FolderOpen,
 } from 'lucide-react';
@@ -111,38 +110,29 @@ export const WebWorkspace: React.FC<WebWorkspaceProps> = ({
       onDrop={onWebDrop}
       className="min-h-screen flex flex-col mw-canvas"
     >
-      {/* Glass Web Header */}
-      <header className="sticky top-0 z-30 border-b border-slate-200/80 dark:border-slate-800 bg-white/85 dark:bg-slate-900/85 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
+      {/* Flat Desktop-Style Header */}
+      <header className="sticky top-0 z-30 border-b border-[var(--mw-border)] bg-[var(--mw-surface)]">
+        <div className="max-w-screen-2xl mx-auto px-4 lg:px-6 h-12 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
             <img
               src="/monword-icon.png"
               alt="MonWord"
-              className="w-9 h-9 object-contain drop-shadow-sm shrink-0"
+              className="w-7 h-7 object-contain shrink-0"
             />
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-base font-extrabold tracking-tight">
-                  <span className="text-[#35283C] dark:text-slate-100">Mon</span>
-                  <span className="text-[#2563EB] dark:text-blue-400">Word</span>
-                </span>
-                <VersionOtaPill
-                  currentVersion={currentVersion}
-                  updateInfo={updateInfo}
-                  onOpenUpdate={onOpenUpdate}
-                  editionLabel="Web"
-                />
-                <span className="hidden lg:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                  <ShieldCheck className="w-3 h-3" /> Xử lý an toàn trên thiết bị
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate hidden sm:block">
-                Chuẩn hóa và kiểm tra thể thức văn bản
-              </p>
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              <span className="text-base font-bold tracking-tight text-[var(--mw-ink)]">
+                MonWord
+              </span>
+              <VersionOtaPill
+                currentVersion={currentVersion}
+                updateInfo={updateInfo}
+                onOpenUpdate={onOpenUpdate}
+                editionLabel="Web"
+              />
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {adminMode && (
               <PlatformSwitcher
                 edition={edition}
@@ -164,7 +154,7 @@ export const WebWorkspace: React.FC<WebWorkspaceProps> = ({
             <button
               type="button"
               onClick={onOpenAbout}
-              className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+              className="mw-button mw-button-secondary mw-icon-button"
               title="Thông tin phiên bản & bảo mật"
             >
               <Info className="w-4 h-4" />
@@ -173,7 +163,7 @@ export const WebWorkspace: React.FC<WebWorkspaceProps> = ({
             <button
               type="button"
               onClick={onToggleDark}
-              className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+              className="mw-button mw-button-secondary mw-icon-button"
               title="Đổi giao diện Sáng / Tối"
             >
               {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}

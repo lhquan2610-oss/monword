@@ -104,33 +104,27 @@ export const MobileWorkspace: React.FC<MobileWorkspaceProps> = ({
 
   return (
     <div className="min-h-screen flex flex-col mw-canvas pb-20">
-      {/* Sticky Safe-Area Mobile Header */}
-      <header className="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 px-3.5 py-2.5 flex items-center justify-between gap-2">
+      {/* Flat Mobile Header */}
+      <header className="sticky top-0 z-30 bg-[var(--mw-surface)] border-b border-[var(--mw-border)] px-3.5 py-2 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          <img src="/monword-icon.png" alt="MonWord" className="w-8 h-8 object-contain shrink-0" />
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm font-extrabold tracking-tight">
-                <span className="text-[#35283C] dark:text-slate-100">Mon</span>
-                <span className="text-[#2563EB] dark:text-blue-400">Word</span>
-              </span>
-              <VersionOtaPill
-                currentVersion={currentVersion}
-                updateInfo={updateInfo}
-                onOpenUpdate={onOpenUpdate}
-                editionLabel="Mobile"
-              />
-            </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-              Chuẩn hóa văn bản trên điện thoại
-            </p>
+          <img src="/monword-icon.png" alt="MonWord" className="w-7 h-7 object-contain shrink-0" />
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-sm font-bold tracking-tight text-[var(--mw-ink)]">
+              MonWord
+            </span>
+            <VersionOtaPill
+              currentVersion={currentVersion}
+              updateInfo={updateInfo}
+              onOpenUpdate={onOpenUpdate}
+              editionLabel="Mobile"
+            />
           </div>
         </div>
 
         <button
           type="button"
           onClick={onOpenAbout}
-          className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0"
+          className="mw-button mw-button-secondary mw-icon-button shrink-0"
           aria-label="Thông tin MonWord"
         >
           <Info className="w-4 h-4" />

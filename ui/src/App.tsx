@@ -1230,36 +1230,30 @@ export function App() {
         >
           {/* Windows Topbar */}
           <header className="h-14 shrink-0 px-4 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-2.5 min-w-0">
               <img
                 src="/monword-icon.png"
-                alt="Logo MonWord"
-                className="w-10 h-10 object-contain drop-shadow-sm shrink-0"
+                alt="MonWord"
+                className="w-8 h-8 object-contain shrink-0"
               />
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <h1 className="text-base font-extrabold tracking-tight">
-                    <span className="text-[#35283C] dark:text-slate-100">Mon</span>
-                    <span className="text-[#2563EB] dark:text-blue-400">Word</span>
-                  </h1>
-                  <VersionOtaPill
-                    currentVersion={currentVersion}
-                    updateInfo={updateInfo}
-                    onOpenUpdate={() => setUpdateDialogOpen(true)}
-                    editionLabel={editionLabel}
-                  />
-                </div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                  Chuẩn hóa và kiểm tra thể thức văn bản
-                </p>
+              <div className="flex items-center gap-2 flex-wrap min-w-0">
+                <h1 className="text-base font-bold tracking-tight">
+                  <span className="text-[var(--mw-ink)]">MonWord</span>
+                </h1>
+                <VersionOtaPill
+                  currentVersion={currentVersion}
+                  updateInfo={updateInfo}
+                  onOpenUpdate={() => setUpdateDialogOpen(true)}
+                  editionLabel={editionLabel}
+                />
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
                 onClick={() => setAboutDialogOpen(true)}
-                className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+                className="mw-button mw-button-secondary mw-icon-button"
                 title="Giới thiệu & Phiên bản"
               >
                 <Info className="w-4 h-4" />
@@ -1268,7 +1262,7 @@ export function App() {
               <button
                 type="button"
                 onClick={() => setDarkMode((d) => !d)}
-                className="p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+                className="mw-button mw-button-secondary mw-icon-button"
                 title={darkMode ? 'Chuyển sang Giao diện Sáng' : 'Chuyển sang Giao diện Tối'}
               >
                 {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}

@@ -61,6 +61,7 @@ import {
   loadWebPreviewMediaUrl,
 } from '../utils/webLivePreview';
 import { listWebTemplates } from '../utils/webTemplateEngine';
+import { isAdminToolsEnabled } from '../utils/platform';
 
 export interface LivePreviewFocusTarget {
   filePath: string;
@@ -649,6 +650,7 @@ export const LivePreviewWorkspace: React.FC<LivePreviewWorkspaceProps> = ({
   onStatusToast,
 }) => {
   const isNative = bridge.isNativeHost();
+  const adminMode = isAdminToolsEnabled();
   const wordFiles = useMemo(
     () => files.filter((f) => ['docx', 'docm'].includes(f.ext.toLowerCase())),
     [files],
@@ -1096,23 +1098,25 @@ export const LivePreviewWorkspace: React.FC<LivePreviewWorkspaceProps> = ({
 
   return (
     <div className="flex flex-col gap-3 h-full min-h-[700px]">
-      {/* Fidelity Disclaimer Banner */}
-      <div className="rounded-xl border border-amber-300/80 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/35 px-3 py-2 text-[11px] text-amber-900 dark:text-amber-200 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
-          <span>{session?.fidelityDisclaimer || PREVIEW_FIDELITY_DISCLAIMER_VI}</span>
+      {/* Fidelity disclaimer & telemetry bar (chỉ hiện trong ?admin=1) */}
+      {adminMode && (
+        <div className="border border-[var(--mw-border)] bg-[var(--mw-canvas)] px-3 py-2 text-[11px] text-[var(--mw-muted)] flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <AlertCircle className="w-4 h-4 shrink-0 text-[var(--mw-ink)]" />
+            <span>{session?.fidelityDisclaimer || PREVIEW_FIDELITY_DISCLAIMER_VI}</span>
+          </div>
+          {session && (
+            <span className="shrink-0 font-mono text-[10px] px-2 py-0.5 bg-[var(--mw-surface)] border border-[var(--mw-border)] text-[var(--mw-ink)]">
+              {session.updateMode === 'incrementalPatch'
+                ? 'Cập nhật tức thì'
+                : session.updateMode === 'fullRebuild'
+                  ? 'Dựng lại trong bộ nhớ'
+                  : 'Khởi tạo'}{' '}
+              · {session.elapsedMs}ms
+            </span>
+          )}
         </div>
-        {session && (
-          <span className="shrink-0 font-mono text-[10px] px-2 py-0.5 rounded bg-white/80 dark:bg-slate-900 border border-amber-200 dark:border-amber-800">
-            {session.updateMode === 'incrementalPatch'
-              ? 'Cập nhật tức thì'
-              : session.updateMode === 'fullRebuild'
-                ? 'Dựng lại trong bộ nhớ'
-                : 'Khởi tạo'}{' '}
-            · {session.elapsedMs}ms
-          </span>
-        )}
-      </div>
+      )}
 
       {/* Top Toolbar */}
       <div className="mw-panel p-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
@@ -1148,7 +1152,7 @@ export const LivePreviewWorkspace: React.FC<LivePreviewWorkspaceProps> = ({
           </select>
 
           {/* Before / After / Split Switcher */}
-          <div className="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-0.5">
+          <div className="inline-flex border border-[var(--mw-border)] bg-[var(--mw-canvas)] p-0.5">
             {(
               [
                 { id: 'before', label: 'Bản gốc', icon: FileText },
@@ -1160,10 +1164,10 @@ export const LivePreviewWorkspace: React.FC<LivePreviewWorkspaceProps> = ({
                 key={id}
                 type="button"
                 onClick={() => setViewMode(id)}
-                className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                className={`inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold transition-colors ${
                   viewMode === id
-                    ? 'bg-white dark:bg-slate-900 text-blue-600 shadow-sm'
-                    : 'text-slate-600 dark:text-slate-300'
+                    ? 'bg-[var(--mw-surface)] text-[var(--mw-ink)]'
+                    : 'text-[var(--mw-muted)]'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -1175,10 +1179,10 @@ export const LivePreviewWorkspace: React.FC<LivePreviewWorkspaceProps> = ({
           <button
             type="button"
             onClick={() => setShowDiffHighlight((v) => !v)}
-            className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg border text-[11px] font-medium ${
+            className={`inline-flex items-center gap-1 px-2 py-1 border text-[11px] font-medium ${
               showDiffHighlight
-                ? 'bg-amber-50 border-amber-300 text-amber-800 dark:bg-amber-950/50 dark:border-amber-700 dark:text-amber-300'
-                : 'border-slate-200 dark:border-slate-700 text-slate-500'
+                ? 'bg-[var(--mw-tint)] border-[var(--mw-accent)] text-[var(--mw-ink)] font-semibold'
+                : 'border-[var(--mw-border)] bg-[var(--mw-surface)] text-[var(--mw-muted)]'
             }`}
             title="Đánh dấu vị trí thay đổi"
           >
@@ -1191,7 +1195,7 @@ export const LivePreviewWorkspace: React.FC<LivePreviewWorkspaceProps> = ({
               <button
                 type="button"
                 onClick={() => jumpDiff(-1)}
-                className="p-1 rounded border border-slate-200 dark:border-slate-700 hover:bg-slate-100"
+                className="p-1 border border-[var(--mw-border)] bg-[var(--mw-surface)] hover:bg-[var(--mw-tint)]"
                 title="Thay đổi trước"
               >
                 <ArrowLeft className="w-3 h-3" />
@@ -1199,7 +1203,7 @@ export const LivePreviewWorkspace: React.FC<LivePreviewWorkspaceProps> = ({
               <button
                 type="button"
                 onClick={() => jumpDiff(1)}
-                className="p-1 rounded border border-slate-200 dark:border-slate-700 hover:bg-slate-100"
+                className="p-1 border border-[var(--mw-border)] bg-[var(--mw-surface)] hover:bg-[var(--mw-tint)]"
                 title="Thay đổi tiếp"
               >
                 <ArrowRight className="w-3 h-3" />
@@ -1210,10 +1214,10 @@ export const LivePreviewWorkspace: React.FC<LivePreviewWorkspaceProps> = ({
           <button
             type="button"
             onClick={() => setShowPrintGuides((v) => !v)}
-            className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg border text-[11px] font-medium ${
+            className={`inline-flex items-center gap-1 px-2 py-1 border text-[11px] font-medium ${
               showPrintGuides
-                ? 'bg-sky-50 border-sky-300 text-sky-800 dark:bg-sky-950/50 dark:border-sky-700 dark:text-sky-300'
-                : 'border-slate-200 dark:border-slate-700 text-slate-500'
+                ? 'bg-[var(--mw-tint)] border-[var(--mw-accent)] text-[var(--mw-ink)] font-semibold'
+                : 'border-[var(--mw-border)] bg-[var(--mw-surface)] text-[var(--mw-muted)]'
             }`}
           >
             <Printer className="w-3.5 h-3.5" />

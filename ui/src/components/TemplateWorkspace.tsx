@@ -89,6 +89,16 @@ const POPULAR_TEMPLATE_ORDER: string[] = [
 
 const POPULAR_TEMPLATE_SET = new Set<string>(POPULAR_TEMPLATE_ORDER);
 
+function formatCleanTemplateTitle(name: string): string {
+  return name
+    .replace(/\s*\(NĐ\s*30\/2020\/NĐ-CP\)/gi, '')
+    .replace(/\s*\(SOP doanh nghiệp\)$/i, ' (SOP)')
+    .replace(/\s+hành chính$/i, '')
+    .replace(/\s+nội bộ doanh nghiệp$/i, ' nội bộ')
+    .replace(/\s+doanh nghiệp$/i, '')
+    .trim();
+}
+
 interface TemplateFieldSpec {
   key: keyof Omit<DynamicTemplateFields, 'extraFields'>;
   label: string;
@@ -194,7 +204,7 @@ const EMPTY_DYNAMIC_FIELDS: DynamicTemplateFields = {
 };
 
 const GROUP_LABELS: Record<TemplateGroup, string> = {
-  administrative: 'Hành chính (NĐ 30)',
+  administrative: 'Hành chính',
   enterprise: 'Doanh nghiệp',
   party: 'Văn bản Đảng',
   academic: 'Học thuật',
@@ -737,20 +747,13 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
         }}
       />
 
-      {/* Top Header + Sub-Navigation */}
-      <div className="mw-panel p-4 sm:p-5 space-y-3">
+      {/* Top Header + Filter Toolbar */}
+      <div className="mw-panel p-4 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-base font-bold flex items-center gap-2 text-[var(--mw-ink)]">
-              <LayoutTemplate className="w-5 h-5 text-[var(--mw-accent)]" />
-              {adminMode ? 'Template Engine — Thư viện & Thiết kế Mẫu văn bản' : 'Mẫu văn bản'}
-            </h2>
-            <p className="text-xs text-[var(--mw-muted)] mt-0.5">
-              {adminMode
-                ? `Kế thừa Organization Profile, Header Builder và Kiểm chuẩn NĐ 30 · Hiện có ${catalog.templates.length} mẫu.`
-                : 'Chọn mẫu văn bản phổ biến, điền các thông tin cần thiết, xem trước và lưu thành tệp Word.'}
-            </p>
-          </div>
+          <h2 className="text-base font-bold flex items-center gap-2 text-[var(--mw-ink)]">
+            <LayoutTemplate className="w-4 h-4 text-[var(--mw-accent)]" />
+            {adminMode ? 'Template Engine — Thư viện & Thiết kế Mẫu văn bản' : 'Mẫu văn bản'}
+          </h2>
           {adminMode && (
             <div className="flex flex-wrap items-center gap-1.5">
               {(
@@ -766,10 +769,10 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
                     key={tab.id}
                     type="button"
                     onClick={() => setSubTab(tab.id)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold transition-colors ${
                       subTab === tab.id
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700'
+                        ? 'bg-[var(--mw-accent)] text-[var(--mw-accent-ink)]'
+                        : 'bg-[var(--mw-canvas)] text-[var(--mw-ink)] border border-[var(--mw-border)]'
                     }`}
                   >
                     <Icon className="w-3.5 h-3.5" />
@@ -782,7 +785,7 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
         </div>
 
         {/* Step 1 Toolbar: Popular + Group Filter + Search */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[var(--mw-border)]">
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5 border-t border-[var(--mw-border)]">
           <div className="flex flex-wrap items-center gap-1.5">
             {(
               [
@@ -920,23 +923,24 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
             Không tìm thấy mẫu phù hợp với từ khóa &quot;{searchQuery}&quot;.
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2.5 max-h-64 overflow-y-auto pr-1">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {filteredTemplates.map((tpl) => {
               const active = selectedTemplate?.templateId === tpl.templateId;
+              const cleanTitle = adminMode ? tpl.name : formatCleanTemplateTitle(tpl.name);
               return (
                 <button
                   key={tpl.templateId}
                   type="button"
                   onClick={() => setSelectedId(tpl.templateId)}
-                  className={`text-left rounded-xl border p-3 transition-colors ${
+                  className={`text-left border px-3 py-2.5 transition-colors ${
                     active
                       ? 'border-[var(--mw-accent)] bg-[var(--mw-tint)] ring-1 ring-[var(--mw-focus)]'
                       : 'border-[var(--mw-border)] bg-[var(--mw-surface)] hover:border-[var(--mw-focus)]'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-1.5">
-                    <span className="text-xs font-bold text-[var(--mw-ink)] line-clamp-1">
-                      {tpl.name}
+                    <span className="text-xs font-bold text-[var(--mw-ink)]">
+                      {cleanTitle}
                     </span>
                     {adminMode && tpl.isDefaultForDocType && (
                       <span title="Mặc định" className="text-amber-500 shrink-0">
@@ -944,13 +948,10 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
                       </span>
                     )}
                   </div>
-                  <div className="mt-1 text-[10px] font-semibold text-[var(--mw-accent)]">
+                  <div className="mt-1 text-[11px] text-[var(--mw-muted)]">
                     {GROUP_LABELS[tpl.group]}
                     {adminMode ? ` · ${tpl.headerConfig.symbolPrefix || tpl.docType} · v${tpl.version}` : ''}
                   </div>
-                  <p className="text-[11px] text-[var(--mw-muted)] mt-1 line-clamp-2">
-                    {tpl.description || `${tpl.contentStructure.length} thành phần nội dung`}
-                  </p>
                 </button>
               );
             })}
@@ -1249,18 +1250,18 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
           <div className="xl:col-span-6 space-y-3">
             {applyResult && (
               <div
-                className={`rounded-2xl border p-4 space-y-2 ${
+                className={`border p-4 space-y-2 ${
                   applyResult.success
-                    ? 'border-emerald-300 bg-emerald-50/70 dark:border-emerald-900 dark:bg-emerald-950/30'
-                    : 'border-rose-300 bg-rose-50/70 dark:border-rose-900 dark:bg-rose-950/30'
+                    ? 'border-[var(--mw-border)] bg-[var(--mw-surface)]'
+                    : 'border-[var(--mw-danger)] bg-[var(--mw-danger-bg)]'
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-bold flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span className="text-xs font-bold flex items-center gap-1.5 text-[var(--mw-ink)]">
+                    <CheckCircle2 className="w-4 h-4 text-[var(--mw-success)]" />
                     {applyResult.success ? '5. Đã tạo và lưu file Word thành công' : 'Không thể tạo tệp'}
                   </span>
-                  <span className="text-[11px] font-mono">
+                  <span className="text-[11px] font-mono text-[var(--mw-muted)]">
                     {Math.max(1, Math.round(applyResult.outputSizeBytes / 1024))} KB
                   </span>
                 </div>
@@ -1341,13 +1342,7 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
                   <h3 className="text-sm font-bold text-[var(--mw-ink)]">
                     4. Xem trước nội dung văn bản
                   </h3>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
-                      previewResult.compatibility.missingFields.length === 0
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : 'bg-amber-100 text-amber-800'
-                    }`}
-                  >
+                  <span className="border border-[var(--mw-border)] bg-[var(--mw-canvas)] px-2 py-0.5 text-[11px] font-semibold text-[var(--mw-ink)]">
                     {previewResult.compatibility.missingFields.length === 0
                       ? 'Thông tin đầy đủ'
                       : `Còn ${previewResult.compatibility.missingFields.length} mục chưa điền`}
@@ -1355,12 +1350,12 @@ export const TemplateWorkspace: React.FC<TemplateWorkspaceProps> = ({
                 </div>
 
                 {previewResult.compatibility.missingFields.length > 0 && (
-                  <div className="rounded-xl border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3 space-y-1">
-                    <div className="text-xs font-bold text-amber-800 dark:text-amber-200 flex items-center gap-1.5">
-                      <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <div className="border border-[var(--mw-border)] bg-[var(--mw-canvas)] p-3 space-y-1">
+                    <div className="text-xs font-bold text-[var(--mw-ink)] flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-[var(--mw-muted)]" />
                       Các mục chưa nhập thông tin ({previewResult.compatibility.missingFields.length})
                     </div>
-                    <ul className="text-[11px] text-amber-900 dark:text-amber-300 space-y-0.5">
+                    <ul className="text-[11px] text-[var(--mw-muted)] space-y-0.5">
                       {previewResult.compatibility.missingFields.map((m) => (
                         <li key={m.fieldKey}>
                           <strong>{m.labelVi}:</strong> sẽ giữ chỗ để bạn bổ sung sau trong Word

@@ -5,48 +5,48 @@
 @layer base {
   :root {
     color-scheme: light;
-    --mw-canvas: #f4f6f9;
-    --mw-surface: #fff;
-    --mw-ink: #17263c;
-    --mw-muted: #4c5c71;
-    --mw-border: #c8d2df;
-    --mw-accent: #203c63;
-    --mw-accent-hover: #152d4e;
-    --mw-accent-ink: #fff;
-    --mw-tint: #eaf1fa;
-    --mw-focus: #255db6;
-    --mw-success: #1d593d;
-    --mw-success-bg: #edf8f1;
-    --mw-warning: #784407;
-    --mw-warning-bg: #fff5df;
-    --mw-danger: #942b37;
-    --mw-danger-bg: #fff0f1;
-    --mw-control-radius: 6px;
-    --mw-panel-radius: 10px;
+    --mw-canvas: #f3f4f6;
+    --mw-surface: #ffffff;
+    --mw-ink: #111827;
+    --mw-muted: #4b5563;
+    --mw-border: #d0d7de;
+    --mw-accent: #1b365d;
+    --mw-accent-hover: #122645;
+    --mw-accent-ink: #ffffff;
+    --mw-tint: #eef2f6;
+    --mw-focus: #1b365d;
+    --mw-success: #165b3d;
+    --mw-success-bg: #f1f7f4;
+    --mw-warning: #6b4408;
+    --mw-warning-bg: #fbf8f1;
+    --mw-danger: #8f2430;
+    --mw-danger-bg: #fbf3f4;
+    --mw-control-radius: 3px;
+    --mw-panel-radius: 4px;
     --mw-control-height: 2rem;
     --mw-control-gap: 0.375rem;
     --mw-control-padding: 0.75rem;
-    --mw-overlay: rgb(15 23 42 / 55%);
+    --mw-overlay: rgb(15 23 42 / 50%);
   }
 
   .dark {
     color-scheme: dark;
-    --mw-canvas: #101824;
-    --mw-surface: #192435;
-    --mw-ink: #edf2f8;
-    --mw-muted: #afbed1;
-    --mw-border: #4b5c73;
+    --mw-canvas: #111827;
+    --mw-surface: #1b2432;
+    --mw-ink: #f3f4f6;
+    --mw-muted: #b6c0ce;
+    --mw-border: #3a4658;
     --mw-accent: #b8d2f8;
     --mw-accent-hover: #d8e7fc;
-    --mw-accent-ink: #152b4b;
-    --mw-tint: #263953;
+    --mw-accent-ink: #111827;
+    --mw-tint: #253143;
     --mw-focus: #9dc5ff;
     --mw-success: #a7e4c2;
-    --mw-success-bg: #19382d;
+    --mw-success-bg: #182b24;
     --mw-warning: #ffcf88;
-    --mw-warning-bg: #3e2e1a;
+    --mw-warning-bg: #2e2519;
     --mw-danger: #ffb9c0;
-    --mw-danger-bg: #43252f;
+    --mw-danger-bg: #322026;
     --mw-overlay: rgb(0 0 0 / 64%);
   }
 
@@ -211,6 +211,19 @@
   .mw-dialog::backdrop {
     background: var(--mw-overlay);
   }
+}
+
+/* Desktop-like crisp corners & flat surfaces inside workspace */
+.mw-canvas :where(.rounded-lg, .rounded-xl, .rounded-2xl, .rounded-3xl, .rounded-full:not(input)) {
+  border-radius: var(--mw-panel-radius);
+}
+
+.mw-canvas :where(button, input, select, textarea):where(.rounded-md, .rounded-lg, .rounded-xl, .rounded-2xl, .rounded-full) {
+  border-radius: var(--mw-control-radius);
+}
+
+.mw-canvas :where(.shadow-sm, .shadow) {
+  box-shadow: none;
 }
 
 /* Apply the same control surface to existing editable fields without resizing

@@ -683,51 +683,85 @@ export const StandardizationWorkspace: React.FC<StandardizationWorkspaceProps> =
     (activeFile ? sanitizeOutputBaseName(activeFile.name).replace('_ban_khac', '') : '');
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
-      {/* Header + Mode Switch */}
-      <div className="mw-panel flex flex-wrap items-center justify-between gap-3 p-4">
-        <div className="min-w-0">
+    <div className="mx-auto max-w-5xl space-y-3.5">
+      {/* Unified Header + Mode Switch + 5-Step Strip */}
+      <div className="mw-panel overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
           <h2 className="text-base font-bold flex items-center gap-2 text-[var(--mw-ink)]">
             <ShieldCheck className="w-4 h-4 text-[var(--mw-accent)] shrink-0" />
             Chuẩn hóa văn bản
           </h2>
-          <p className="text-xs text-[var(--mw-muted)] mt-0.5">
-            {mode === 'single'
-              ? 'Thực hiện theo 5 bước rõ ràng để kiểm tra, xác nhận và lưu tệp văn bản hoàn chỉnh.'
-              : 'Áp dụng đồng loạt quy chuẩn cho nhiều tài liệu Word hoặc cả thư mục.'}
-          </p>
+
+          <div
+            role="group"
+            aria-label="Chế độ chuẩn hóa"
+            className="inline-flex items-center border border-[var(--mw-border)] bg-[var(--mw-canvas)] p-0.5 text-xs"
+          >
+            <button
+              type="button"
+              onClick={() => setMode('single')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 font-semibold transition-colors ${
+                mode === 'single'
+                  ? 'bg-[var(--mw-surface)] text-[var(--mw-ink)]'
+                  : 'text-[var(--mw-muted)] hover:text-[var(--mw-ink)]'
+              }`}
+            >
+              <FileText className="size-3.5" aria-hidden="true" />
+              Một tài liệu
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('batch')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 font-semibold transition-colors ${
+                mode === 'batch'
+                  ? 'bg-[var(--mw-surface)] text-[var(--mw-ink)]'
+                  : 'text-[var(--mw-muted)] hover:text-[var(--mw-ink)]'
+              }`}
+            >
+              <Files className="size-3.5" aria-hidden="true" />
+              Nhiều tài liệu
+            </button>
+          </div>
         </div>
 
-        <div
-          role="group"
-          aria-label="Chế độ chuẩn hóa"
-          className="inline-flex items-center rounded-lg border border-[var(--mw-border)] bg-[var(--mw-canvas)] p-0.5 text-xs"
-        >
-          <button
-            type="button"
-            onClick={() => setMode('single')}
-            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 font-semibold transition-colors ${
-              mode === 'single'
-                ? 'bg-[var(--mw-surface)] text-[var(--mw-ink)] shadow-sm'
-                : 'text-[var(--mw-muted)] hover:text-[var(--mw-ink)]'
-            }`}
+        {mode === 'single' && (
+          <nav
+            aria-label="Tiến trình 5 bước chuẩn hóa"
+            className="border-t border-[var(--mw-border)] bg-[var(--mw-surface)]"
           >
-            <FileText className="size-3.5" aria-hidden="true" />
-            Một tài liệu
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('batch')}
-            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 font-semibold transition-colors ${
-              mode === 'batch'
-                ? 'bg-[var(--mw-surface)] text-[var(--mw-ink)] shadow-sm'
-                : 'text-[var(--mw-muted)] hover:text-[var(--mw-ink)]'
-            }`}
-          >
-            <Files className="size-3.5" aria-hidden="true" />
-            Nhiều tài liệu
-          </button>
-        </div>
+            <ol className="grid grid-cols-2 sm:grid-cols-5 divide-y sm:divide-y-0 sm:divide-x divide-[var(--mw-border)]">
+              {WIZARD_STEPS.map((s) => {
+                const isCurrent = step === s.id;
+                const isDone = step > s.id;
+                const reachable = canJumpToStep(s.id);
+                return (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      disabled={!reachable}
+                      onClick={() => {
+                        if (reachable) setStep(s.id);
+                      }}
+                      aria-current={isCurrent ? 'step' : undefined}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs transition-colors border-b-2 ${
+                        isCurrent
+                          ? 'border-b-[var(--mw-accent)] bg-[var(--mw-tint)] text-[var(--mw-ink)] font-bold'
+                          : isDone
+                            ? 'border-b-transparent text-[var(--mw-ink)] font-medium hover:bg-[var(--mw-canvas)]'
+                            : 'border-b-transparent text-[var(--mw-muted)] opacity-65'
+                      } disabled:cursor-not-allowed`}
+                    >
+                      <span className="w-4 text-center font-bold shrink-0">
+                        {isDone ? '✓' : `${s.id}.`}
+                      </span>
+                      <span>{s.label}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </nav>
+        )}
       </div>
 
       {mode === 'batch' ? (
@@ -907,60 +941,12 @@ export const StandardizationWorkspace: React.FC<StandardizationWorkspaceProps> =
         </section>
       ) : (
         <>
-          {/* Thanh tiến trình 5 bước */}
-          <nav aria-label="Tiến trình 5 bước chuẩn hóa" className="mw-panel p-3">
-            <ol className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-              {WIZARD_STEPS.map((s) => {
-                const isCurrent = step === s.id;
-                const isDone = step > s.id;
-                const reachable = canJumpToStep(s.id);
-                return (
-                  <li key={s.id}>
-                    <button
-                      type="button"
-                      disabled={!reachable}
-                      onClick={() => {
-                        if (reachable) setStep(s.id);
-                      }}
-                      aria-current={isCurrent ? 'step' : undefined}
-                      className={`w-full flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-xs transition-colors ${
-                        isCurrent
-                          ? 'border-[var(--mw-accent)] bg-[var(--mw-tint)] text-[var(--mw-ink)] font-bold'
-                          : isDone
-                            ? 'border-emerald-300 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-300 font-semibold'
-                            : 'border-[var(--mw-border)] text-[var(--mw-muted)] opacity-65'
-                      } disabled:cursor-not-allowed`}
-                    >
-                      <span
-                        className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
-                          isCurrent
-                            ? 'bg-[var(--mw-accent)] text-[var(--mw-accent-ink)]'
-                            : isDone
-                              ? 'bg-emerald-600 text-white'
-                              : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                        }`}
-                      >
-                        {isDone ? '✓' : s.id}
-                      </span>
-                      <span className="truncate">{s.label}</span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
-          </nav>
-
           {/* BƯỚC 1 – CHỌN TÀI LIỆU */}
           {step === 1 && (
-            <section className="mw-panel p-5 sm:p-6 space-y-4">
-              <div className="space-y-1">
-                <h3 className="text-base font-bold text-[var(--mw-ink)]">
-                  Bước 1: Chọn tài liệu Word cần chuẩn hóa
-                </h3>
-                <p className="text-xs text-[var(--mw-muted)]">
-                  Hỗ trợ các định dạng tài liệu Word phổ biến: <strong>DOCX, DOCM, DOC</strong>. Hệ thống chỉ kiểm tra sau khi bạn xác nhận ở bước tiếp theo.
-                </p>
-              </div>
+            <section className="mw-panel p-4 sm:p-5 space-y-4">
+              <h3 className="text-sm font-bold text-[var(--mw-ink)]">
+                Bước 1: Chọn tài liệu Word cần chuẩn hóa
+              </h3>
 
               <div
                 onDragOver={(e) => {
@@ -1019,7 +1005,7 @@ export const StandardizationWorkspace: React.FC<StandardizationWorkspaceProps> =
                         <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--mw-muted)]">
                           <span>Dung lượng: <strong>{formatBytes(activeFile.sizeBytes)}</strong></span>
                           <span>Định dạng: <strong>{activeFile.ext.toUpperCase()}</strong></span>
-                          <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-300 font-semibold">
+                          <span className="inline-flex items-center gap-1 text-[var(--mw-ink)] font-semibold">
                             <CheckCircle2 className="size-3.5" aria-hidden="true" />
                             Đã tải sẵn sàng
                           </span>
@@ -1092,16 +1078,14 @@ export const StandardizationWorkspace: React.FC<StandardizationWorkspaceProps> =
 
           {/* BƯỚC 2 – CHỌN LOẠI VĂN BẢN */}
           {step === 2 && (
-            <section className="mw-panel p-5 sm:p-6 space-y-4">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="space-y-1">
-                  <h3 className="text-base font-bold text-[var(--mw-ink)]">
-                    Bước 2: Chọn loại văn bản cần chuẩn hóa
-                  </h3>
-                  <p className="text-xs text-[var(--mw-muted)]">
-                    Chọn đúng loại văn bản cho <strong>{activeFile?.name}</strong> để hệ thống áp dụng đúng quy chuẩn tương ứng.
-                  </p>
-                </div>
+            <section className="mw-panel p-4 sm:p-5 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-bold text-[var(--mw-ink)]">
+                  Bước 2: Chọn loại văn bản cần chuẩn hóa
+                </h3>
+                <span className="text-xs text-[var(--mw-muted)]">
+                  Tài liệu: <strong className="text-[var(--mw-ink)]">{activeFile?.name}</strong>
+                </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1237,26 +1221,21 @@ export const StandardizationWorkspace: React.FC<StandardizationWorkspaceProps> =
               )}
 
               {report.findings.length === 0 ? (
-                <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-950/20 p-4 text-xs text-emerald-900 dark:text-emerald-200 flex items-start gap-2.5">
-                  <CheckCircle2 className="size-5 text-emerald-600 shrink-0 mt-0.5" aria-hidden="true" />
-                  <div className="space-y-1">
-                    <div className="font-bold text-sm">
-                      Chưa phát hiện vấn đề cần chỉnh sửa thuộc phạm vi kiểm tra
-                    </div>
-                    <p>
-                      Lưu ý: Kết quả này chỉ phản ánh việc kiểm tra trình bày, định dạng và thể thức theo phạm vi bạn đã chọn, không thay thế việc kiểm tra nội dung chuyên môn và tính pháp lý của văn bản.
-                    </p>
+                <div className="border border-[var(--mw-border)] bg-[var(--mw-surface)] p-4 text-xs text-[var(--mw-ink)] flex items-start gap-2.5">
+                  <CheckCircle2 className="size-4 shrink-0 mt-0.5" aria-hidden="true" />
+                  <div className="font-semibold">
+                    Chưa phát hiện vấn đề cần chỉnh sửa thuộc phạm vi kiểm tra.
                   </div>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center text-xs">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
                     {STD_GROUP_META.map((grp) => (
                       <div
                         key={grp.key}
-                        className="rounded-xl border border-[var(--mw-border)] bg-[var(--mw-canvas)] p-2.5"
+                        className="border border-[var(--mw-border)] bg-[var(--mw-surface)] p-2.5"
                       >
-                        <div className="text-lg font-extrabold text-[var(--mw-ink)]">
+                        <div className="text-base font-bold text-[var(--mw-ink)]">
                           {groupedFindings[grp.key].length}
                         </div>
                         <div className="text-[11px] font-semibold text-[var(--mw-muted)]">
@@ -1273,24 +1252,23 @@ export const StandardizationWorkspace: React.FC<StandardizationWorkspaceProps> =
                     return (
                       <div
                         key={grp.key}
-                        className="rounded-xl border border-[var(--mw-border)] overflow-hidden"
+                        className="border border-[var(--mw-border)] overflow-hidden"
                       >
-                        <div className="border-b border-[var(--mw-border)] bg-[var(--mw-canvas)] px-4 py-2.5">
+                        <div className="border-b border-[var(--mw-border)] bg-[var(--mw-canvas)] px-3.5 py-2">
                           <div className="text-xs font-bold text-[var(--mw-ink)]">
                             {grp.title} ({list.length})
                           </div>
-                          <p className="text-[11px] text-[var(--mw-muted)]">{grp.subtitle}</p>
                         </div>
 
                         <div className="divide-y divide-[var(--mw-border)]">
                           {list.map((f) => {
                             const tier = TIER_PLAIN_META[f.safetyTier];
                             return (
-                              <div key={f.findingId} className="p-3.5 text-xs space-y-2">
+                              <div key={f.findingId} className="p-3 text-xs space-y-1.5">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                   <div className="flex flex-wrap items-center gap-2">
                                     {adminMode && (
-                                      <span className="font-mono font-bold text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800">
+                                      <span className="font-mono font-bold text-[10px] px-1.5 py-0.5 bg-[var(--mw-canvas)] border border-[var(--mw-border)]">
                                         {f.ruleId}
                                       </span>
                                     )}
@@ -1298,13 +1276,7 @@ export const StandardizationWorkspace: React.FC<StandardizationWorkspaceProps> =
                                       {f.ruleName}
                                     </span>
                                   </div>
-                                  <span
-                                    className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                                      isManualGroup
-                                        ? 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                                        : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
-                                    }`}
-                                  >
+                                  <span className="border border-[var(--mw-border)] bg-[var(--mw-canvas)] px-2 py-0.5 text-[11px] font-semibold text-[var(--mw-ink)]">
                                     {isManualGroup ? 'Cần kiểm tra thủ công' : 'Cần chỉnh sửa'}
                                   </span>
                                 </div>
@@ -1314,38 +1286,38 @@ export const StandardizationWorkspace: React.FC<StandardizationWorkspaceProps> =
                                   {f.location ? ` (Vị trí: ${f.location})` : ''}
                                 </p>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-lg border border-[var(--mw-border)] bg-[var(--mw-canvas)] p-2 text-[11px]">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border border-[var(--mw-border)] bg-[var(--mw-canvas)] px-2.5 py-1.5 text-[11px]">
                                   <div>
                                     <span className="font-semibold text-[var(--mw-muted)]">Hiện tại: </span>
-                                    <span className="text-rose-700 dark:text-rose-300">
+                                    <span className="text-[var(--mw-ink)]">
                                       {f.currentValue || 'Chưa xác định'}
                                     </span>
                                   </div>
                                   <div>
                                     <span className="font-semibold text-[var(--mw-muted)]">Đề xuất: </span>
-                                    <span className="text-emerald-700 dark:text-emerald-300">
+                                    <span className="font-semibold text-[var(--mw-ink)]">
                                       {f.expectedValue || 'Kiểm tra lại theo nội dung văn bản'}
                                     </span>
                                   </div>
                                 </div>
 
-                                <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
-                                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${tier.cls}`}>
-                                    Khả năng xử lý: {tier.label}
-                                  </span>
-                                  {adminMode && (
+                                {adminMode && (
+                                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                                    <span className="border border-[var(--mw-border)] px-2 py-0.5 text-[10px] font-semibold text-[var(--mw-muted)]">
+                                      {tier.label}
+                                    </span>
                                     <button
                                       type="button"
                                       onClick={() => {
                                         setHighlightedPath(f.elementPath);
                                         inspectorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                                       }}
-                                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:underline"
+                                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--mw-accent)] hover:underline"
                                     >
                                       <MapPin className="size-3" /> Soi XML
                                     </button>
-                                  )}
-                                </div>
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
@@ -1412,28 +1384,18 @@ export const StandardizationWorkspace: React.FC<StandardizationWorkspaceProps> =
           {/* BƯỚC 4 – XÁC NHẬN CHUẨN HÓA */}
           {step === 4 && report && (
             <section className="mw-panel p-5 sm:p-6 space-y-4">
-              <div className="space-y-1">
-                <h3 className="text-base font-bold text-[var(--mw-ink)]">
-                  Bước 4: Xác nhận nội dung chuẩn hóa
-                </h3>
-                <p className="text-xs text-[var(--mw-muted)]">
-                  Chọn các thay đổi bạn đồng ý áp dụng. Hệ thống sẽ giữ nguyên toàn bộ nội dung, số hiệu, ngày tháng và chữ ký.
-                </p>
-              </div>
+              <h3 className="text-sm font-bold text-[var(--mw-ink)]">
+                Bước 4: Xác nhận nội dung chuẩn hóa
+              </h3>
 
               {/* 1. Tự động sửa an toàn */}
-              <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 overflow-hidden">
-                <div className="flex flex-wrap items-center justify-between gap-2 bg-emerald-50/70 dark:bg-emerald-950/20 px-4 py-2.5 border-b border-emerald-200 dark:border-emerald-900/60">
-                  <div>
-                    <div className="text-xs font-bold text-emerald-900 dark:text-emerald-200">
-                      1. Có thể tự động sửa an toàn ({actionGroups.groupA.length})
-                    </div>
-                    <p className="text-[11px] text-emerald-800/85 dark:text-emerald-300/85">
-                      Các lỗi định dạng, phông chữ, cỡ chữ, giãn dòng và lề trang an toàn. Bạn có thể bỏ tích từng mục nếu muốn giữ nguyên.
-                    </p>
+              <div className="border border-[var(--mw-border)] overflow-hidden">
+                <div className="flex flex-wrap items-center justify-between gap-2 bg-[var(--mw-canvas)] px-3.5 py-2 border-b border-[var(--mw-border)]">
+                  <div className="text-xs font-bold text-[var(--mw-ink)]">
+                    1. Có thể tự động sửa an toàn ({actionGroups.groupA.length})
                   </div>
                   {actionGroups.groupA.length > 0 && (
-                    <label className="inline-flex items-center gap-1.5 text-xs font-semibold cursor-pointer">
+                    <label className="inline-flex items-center gap-1.5 text-xs font-semibold cursor-pointer text-[var(--mw-ink)]">
                       <input
                         type="checkbox"
                         checked={applyAllGroupA}
@@ -1457,7 +1419,7 @@ export const StandardizationWorkspace: React.FC<StandardizationWorkspaceProps> =
                       return (
                         <label
                           key={f.findingId}
-                          className="flex items-start gap-2.5 p-3 text-xs cursor-pointer hover:bg-[var(--mw-canvas)]"
+                          className="flex items-start gap-2.5 px-3.5 py-2.5 text-xs cursor-pointer hover:bg-[var(--mw-canvas)]"
                         >
                           <input
                             type="checkbox"
@@ -1475,7 +1437,7 @@ export const StandardizationWorkspace: React.FC<StandardizationWorkspaceProps> =
                               ) : null}
                             </div>
                             <div className="text-[11px] text-[var(--mw-muted)]">
-                              {f.currentValue} → <strong className="text-emerald-700 dark:text-emerald-300">{f.expectedValue}</strong>
+                              {f.currentValue} → <strong className="text-[var(--mw-ink)]">{f.expectedValue}</strong>
                             </div>
                           </div>
                         </label>
@@ -1487,14 +1449,11 @@ export const StandardizationWorkspace: React.FC<StandardizationWorkspaceProps> =
 
               {/* 2. Cần người dùng xác nhận */}
               {actionGroups.groupB.length > 0 && (
-                <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 overflow-hidden">
-                  <div className="bg-amber-50/70 dark:bg-amber-950/20 px-4 py-2.5 border-b border-amber-200 dark:border-amber-900/60">
-                    <div className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                <div className="border border-[var(--mw-border)] overflow-hidden">
+                  <div className="bg-[var(--mw-canvas)] px-3.5 py-2 border-b border-[var(--mw-border)]">
+                    <div className="text-xs font-bold text-[var(--mw-ink)]">
                       2. Cần người dùng xác nhận ({actionGroups.groupB.length})
                     </div>
-                    <p className="text-[11px] text-amber-800/85 dark:text-amber-300/85">
-                      Hệ thống không tự áp dụng nếu bạn chưa tích chọn xác nhận từng mục bên dưới.
-                    </p>
                   </div>
                   <div className="divide-y divide-[var(--mw-border)] max-h-48 overflow-y-auto">
                     {actionGroups.groupB.map((f) => {
@@ -1502,7 +1461,7 @@ export const StandardizationWorkspace: React.FC<StandardizationWorkspaceProps> =
                       return (
                         <label
                           key={f.findingId}
-                          className="flex items-start gap-2.5 p-3 text-xs cursor-pointer hover:bg-[var(--mw-canvas)]"
+                          className="flex items-start gap-2.5 px-3.5 py-2.5 text-xs cursor-pointer hover:bg-[var(--mw-canvas)]"
                         >
                           <input
                             type="checkbox"
@@ -1617,22 +1576,19 @@ export const StandardizationWorkspace: React.FC<StandardizationWorkspaceProps> =
 
           {/* BƯỚC 5 – XEM TRƯỚC VÀ LƯU TÀI LIỆU */}
           {step === 5 && execResult && execResult.success && (
-            <section className="space-y-4">
-              <div className="mw-panel p-5 space-y-4">
-                <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/70 dark:bg-emerald-950/20 p-4 flex flex-wrap items-start justify-between gap-3">
-                  <div className="flex items-start gap-2.5">
-                    <CheckCircle2 className="size-5 text-emerald-600 shrink-0 mt-0.5" aria-hidden="true" />
-                    <div className="space-y-1 text-xs">
-                      <div className="text-sm font-bold text-emerald-900 dark:text-emerald-200">
+            <section className="space-y-3.5">
+              <div className="mw-panel p-4 space-y-3">
+                <div className="border border-[var(--mw-border)] bg-[var(--mw-canvas)] px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <CheckCircle2 className="size-4 text-[var(--mw-success)] shrink-0" aria-hidden="true" />
+                    <div className="min-w-0 text-xs">
+                      <span className="font-bold text-[var(--mw-ink)]">
                         Đã chuẩn hóa và xác minh tệp đầu ra thành công
-                      </div>
-                      <div className="text-emerald-800 dark:text-emerald-300">
-                        {execResult.verification?.summaryMessage ||
-                          `Đã áp dụng ${execResult.actionsApplied.length} thay đổi và bảo toàn đầy đủ cấu trúc tài liệu.`}
-                      </div>
-                      <div className="text-[11px] text-[var(--mw-muted)]">
-                        Tệp kết quả: <strong>{verifiedOutputName}</strong>
-                      </div>
+                      </span>
+                      <span className="mx-1.5 text-[var(--mw-muted)]">·</span>
+                      <span className="text-[var(--mw-muted)]">
+                        Tệp kết quả: <strong className="text-[var(--mw-ink)]">{verifiedOutputName}</strong>
+                      </span>
                     </div>
                   </div>
                   {canRestore && (

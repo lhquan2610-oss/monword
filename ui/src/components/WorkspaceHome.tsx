@@ -17,18 +17,15 @@ const RECENT_STATUS_META: Record<
 > = {
   standardized: {
     label: 'Đã chuẩn hóa',
-    className:
-      'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300',
+    className: 'border border-[var(--mw-border)] bg-[var(--mw-canvas)] text-[var(--mw-ink)]',
   },
   checked: {
     label: 'Đã kiểm tra',
-    className:
-      'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300',
+    className: 'border border-[var(--mw-border)] bg-[var(--mw-canvas)] text-[var(--mw-muted)]',
   },
   selected: {
     label: 'Đã chọn',
-    className:
-      'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+    className: 'border border-[var(--mw-border)] bg-[var(--mw-surface)] text-[var(--mw-muted)]',
   },
 };
 
@@ -80,18 +77,16 @@ export function WorkspaceHome({
   const sessionPathSet = new Set(files.map((f) => f.path.toLowerCase()));
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5 py-2">
-      <header className="space-y-1">
-        <p className="text-xs font-semibold text-[var(--mw-accent)]">
-          Hôm nay bạn muốn làm gì?
-        </p>
+    <div className="mx-auto max-w-4xl space-y-4 py-1">
+      <header className="space-y-0.5">
+        <span className="sr-only">Hôm nay bạn muốn làm gì?</span>
         <h2
           id="monword-home-title"
-          className="text-xl font-bold tracking-tight text-[var(--mw-ink)] sm:text-2xl"
+          className="text-lg font-bold tracking-tight text-[var(--mw-ink)] sm:text-xl"
         >
           Chuẩn hóa và kiểm tra văn bản Word
         </h2>
-        <p className="text-sm text-[var(--mw-muted)]">
+        <p className="text-xs sm:text-sm text-[var(--mw-muted)]">
           Đưa văn bản Word về đúng phông chữ, cỡ chữ, lề trang và thể thức quy định.
         </p>
       </header>
@@ -99,24 +94,20 @@ export function WorkspaceHome({
       {/* 1. Tác vụ chính: Chuẩn hóa văn bản */}
       <section
         aria-labelledby="monword-hero-standardize"
-        className="mw-panel border-[var(--mw-accent)]/35 p-5 sm:p-6 space-y-4 shadow-sm"
+        className="mw-panel border-[var(--mw-accent)]/40 p-4 sm:p-5 space-y-3"
       >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3.5 min-w-0">
-            <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[var(--mw-tint)] text-[var(--mw-accent)]">
-              <FileCheck2 className="size-6" aria-hidden="true" />
-            </div>
-            <div className="min-w-0 space-y-1">
-              <h3
-                id="monword-hero-standardize"
-                className="text-lg font-bold text-[var(--mw-ink)]"
-              >
-                Chuẩn hóa văn bản
-              </h3>
-              <p className="text-xs sm:text-sm leading-5 text-[var(--mw-muted)]">
-                Tự động sửa phông chữ, cỡ chữ, giãn dòng, căn lề và bố cục chuẩn quy định. Giữ nguyên nội dung và lưu thành tệp mới an toàn.
-              </p>
-            </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 space-y-0.5">
+            <h3
+              id="monword-hero-standardize"
+              className="flex items-center gap-2 text-base font-bold text-[var(--mw-ink)]"
+            >
+              <FileCheck2 className="size-4 text-[var(--mw-accent)] shrink-0" aria-hidden="true" />
+              <span>Chuẩn hóa văn bản</span>
+            </h3>
+            <p className="text-xs text-[var(--mw-muted)]">
+              Sửa phông chữ, cỡ chữ, giãn dòng, căn lề và lưu thành tệp mới an toàn.
+            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -201,18 +192,16 @@ export function WorkspaceHome({
       </section>
 
       {/* 2 & 3. Tác vụ phụ: Kiểm tra văn bản & Mẫu văn bản */}
-      <section aria-label="Tác vụ bổ trợ" className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <section aria-label="Tác vụ bổ trợ" className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
         <div className="mw-panel flex flex-col justify-between gap-3 p-4">
-          <div className="flex items-start gap-3">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[var(--mw-tint)] text-[var(--mw-accent)]">
-              <SearchCheck className="size-4.5" aria-hidden="true" />
-            </div>
-            <div className="min-w-0 space-y-0.5">
-              <h3 className="text-sm font-bold text-[var(--mw-ink)]">Kiểm tra văn bản</h3>
-              <p className="text-xs leading-5 text-[var(--mw-muted)]">
-                Rà soát lỗi thể thức và trình bày mà không làm thay đổi tệp gốc.
-              </p>
-            </div>
+          <div className="min-w-0 space-y-0.5">
+            <h3 className="flex items-center gap-2 text-sm font-bold text-[var(--mw-ink)]">
+              <SearchCheck className="size-4 text-[var(--mw-accent)] shrink-0" aria-hidden="true" />
+              <span>Kiểm tra văn bản</span>
+            </h3>
+            <p className="text-xs text-[var(--mw-muted)]">
+              Rà soát lỗi thể thức mà không làm thay đổi tệp gốc.
+            </p>
           </div>
           <div className="flex justify-end">
             <button
@@ -227,16 +216,14 @@ export function WorkspaceHome({
         </div>
 
         <div className="mw-panel flex flex-col justify-between gap-3 p-4">
-          <div className="flex items-start gap-3">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[var(--mw-tint)] text-[var(--mw-accent)]">
-              <LayoutTemplate className="size-4.5" aria-hidden="true" />
-            </div>
-            <div className="min-w-0 space-y-0.5">
-              <h3 className="text-sm font-bold text-[var(--mw-ink)]">Mẫu văn bản</h3>
-              <p className="text-xs leading-5 text-[var(--mw-muted)]">
-                Tạo công văn, quyết định, tờ trình, báo cáo từ khung mẫu chuẩn.
-              </p>
-            </div>
+          <div className="min-w-0 space-y-0.5">
+            <h3 className="flex items-center gap-2 text-sm font-bold text-[var(--mw-ink)]">
+              <LayoutTemplate className="size-4 text-[var(--mw-accent)] shrink-0" aria-hidden="true" />
+              <span>Mẫu văn bản</span>
+            </h3>
+            <p className="text-xs text-[var(--mw-muted)]">
+              Tạo công văn, quyết định, tờ trình, báo cáo từ mẫu chuẩn.
+            </p>
           </div>
           <div className="flex justify-end">
             <button
@@ -288,7 +275,7 @@ export function WorkspaceHome({
                   ? {
                       label: 'Tạo từ mẫu',
                       className:
-                        'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300',
+                        'border border-[var(--mw-border)] bg-[var(--mw-canvas)] text-[var(--mw-ink)]',
                     }
                   : RECENT_STATUS_META[doc.status];
               const isWebPath = doc.path.startsWith('web://');
@@ -299,20 +286,20 @@ export function WorkspaceHome({
               return (
                 <div
                   key={`${doc.path}::${doc.operation || doc.status}`}
-                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5"
                 >
                   <div className="flex items-center gap-2.5 min-w-0 flex-1 basis-56">
                     <FileText className="size-4 shrink-0 text-[var(--mw-accent)]" aria-hidden="true" />
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="truncate text-xs sm:text-sm font-semibold text-[var(--mw-ink)]">
+                        <span className="break-words text-xs sm:text-sm font-semibold text-[var(--mw-ink)]">
                           {doc.name}
                         </span>
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${badge.className}`}>
+                        <span className={`px-2 py-0.5 text-[11px] font-semibold ${badge.className}`}>
                           {badge.label}
                         </span>
                       </div>
-                      <p className="truncate text-[11px] text-[var(--mw-muted)]">
+                      <p className="text-[11px] text-[var(--mw-muted)]">
                         {timeLabel ? `${timeLabel}` : ''}
                         {doc.summary && !doc.summary.includes('/100')
                           ? `${timeLabel ? ' · ' : ''}${doc.summary}`

@@ -618,17 +618,12 @@ export const ComplianceAuditWorkspace: React.FC<ComplianceAuditWorkspaceProps> =
   return (
     <div className="mx-auto max-w-5xl space-y-4">
       {/* Control Header */}
-      <section className="mw-panel p-5 space-y-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="text-base font-bold flex items-center gap-2 text-[var(--mw-ink)]">
-              <ClipboardCheck className="w-5 h-5 text-[var(--mw-accent)]" />
-              Kiểm tra văn bản
-            </h2>
-            <p className="text-xs text-[var(--mw-muted)] mt-0.5">
-              Rà soát lỗi thể thức, định dạng và bố cục độc lập mà không làm thay đổi tệp gốc.
-            </p>
-          </div>
+      <section className="mw-panel p-4 sm:p-5 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-base font-bold flex items-center gap-2 text-[var(--mw-ink)]">
+            <ClipboardCheck className="w-4 h-4 text-[var(--mw-accent)]" />
+            Kiểm tra văn bản
+          </h2>
           <button type="button" onClick={onPickFiles} className="mw-button mw-button-secondary">
             <FolderOpen className="w-4 h-4" /> Chọn tài liệu
           </button>
@@ -809,18 +804,13 @@ export const ComplianceAuditWorkspace: React.FC<ComplianceAuditWorkspaceProps> =
             {/* 4 Trạng thái thống nhất (không điểm /100) */}
             <section className="mw-panel p-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="space-y-0.5 text-xs">
-                  <div className="text-sm font-bold text-[var(--mw-ink)]">
-                    Kết quả kiểm tra: {report.fileInfo.fileName}
-                    {adminMode && (
-                      <span className="ml-2 font-mono text-[11px] font-normal text-[var(--mw-muted)]">
-                        · {report.fileInfo.detectedDocType} · SHA-256: {report.fileInfo.docSha256.slice(0, 12)}…
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[11px] text-[var(--mw-muted)]">
-                    Tệp gốc hoàn toàn không bị thay đổi.
-                  </div>
+                <div className="text-sm font-bold text-[var(--mw-ink)]">
+                  Kết quả kiểm tra: {report.fileInfo.fileName}
+                  {adminMode && (
+                    <span className="ml-2 font-mono text-[11px] font-normal text-[var(--mw-muted)]">
+                      · {report.fileInfo.detectedDocType} · SHA-256: {report.fileInfo.docSha256.slice(0, 12)}…
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
@@ -874,33 +864,33 @@ export const ComplianceAuditWorkspace: React.FC<ComplianceAuditWorkspaceProps> =
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center text-xs">
-                <div className="rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/70 dark:bg-emerald-950/20 p-2.5">
-                  <div className="text-lg font-extrabold text-emerald-700 dark:text-emerald-300">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                <div className="border border-[var(--mw-border)] bg-[var(--mw-surface)] p-2.5">
+                  <div className="text-base font-bold text-[var(--mw-ink)]">
                     {categorizedAudit.counts.passedCount}
                   </div>
-                  <div className="text-[11px] font-semibold text-emerald-800/80 dark:text-emerald-300/80">
+                  <div className="text-[11px] font-semibold text-[var(--mw-muted)]">
                     Đạt
                   </div>
                 </div>
-                <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/20 p-2.5">
-                  <div className="text-lg font-extrabold text-amber-700 dark:text-amber-300">
+                <div className="border border-[var(--mw-border)] bg-[var(--mw-surface)] p-2.5">
+                  <div className="text-base font-bold text-[var(--mw-ink)]">
                     {categorizedAudit.counts.needsFixCount}
                   </div>
-                  <div className="text-[11px] font-semibold text-amber-800/80 dark:text-amber-300/80">
+                  <div className="text-[11px] font-semibold text-[var(--mw-muted)]">
                     Cần chỉnh sửa
                   </div>
                 </div>
-                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-[var(--mw-canvas)] p-2.5">
-                  <div className="text-lg font-extrabold text-[var(--mw-ink)]">
+                <div className="border border-[var(--mw-border)] bg-[var(--mw-surface)] p-2.5">
+                  <div className="text-base font-bold text-[var(--mw-ink)]">
                     {categorizedAudit.counts.manualCount}
                   </div>
                   <div className="text-[11px] font-semibold text-[var(--mw-muted)]">
                     Cần kiểm tra thủ công
                   </div>
                 </div>
-                <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-[var(--mw-canvas)] p-2.5">
-                  <div className="text-lg font-extrabold text-[var(--mw-muted)]">
+                <div className="border border-[var(--mw-border)] bg-[var(--mw-surface)] p-2.5">
+                  <div className="text-base font-bold text-[var(--mw-muted)]">
                     {categorizedAudit.counts.notApplicableCount}
                   </div>
                   <div className="text-[11px] font-semibold text-[var(--mw-muted)]">
@@ -954,7 +944,7 @@ export const ComplianceAuditWorkspace: React.FC<ComplianceAuditWorkspaceProps> =
                     {section.title} ({section.items.length})
                   </h3>
                   {section.items.length === 0 && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 px-2 py-0.5 text-[10px] font-bold">
+                    <span className="inline-flex items-center gap-1 border border-[var(--mw-border)] bg-[var(--mw-surface)] text-[var(--mw-ink)] px-2 py-0.5 text-[11px] font-semibold">
                       <CheckCircle2 className="size-3" /> Đạt
                     </span>
                   )}
@@ -973,13 +963,7 @@ export const ComplianceAuditWorkspace: React.FC<ComplianceAuditWorkspaceProps> =
                             {adminMode && item.adminRuleTag ? `[${item.adminRuleTag}] ` : ''}
                             {item.title}
                           </div>
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                              item.statusLabel === 'Cần kiểm tra thủ công'
-                                ? 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                                : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
-                            }`}
-                          >
+                          <span className="border border-[var(--mw-border)] bg-[var(--mw-canvas)] px-2 py-0.5 text-[11px] font-semibold text-[var(--mw-ink)]">
                             {item.statusLabel}
                           </span>
                         </div>
@@ -1013,7 +997,7 @@ export const ComplianceAuditWorkspace: React.FC<ComplianceAuditWorkspaceProps> =
             {/* 5. Đề xuất cách xử lý */}
             <section className="mw-panel p-4 space-y-2">
               <h3 className="text-xs sm:text-sm font-bold text-[var(--mw-ink)] flex items-center gap-1.5">
-                <AlertTriangle className="size-4 text-amber-600" />
+                <AlertTriangle className="size-4 text-[var(--mw-muted)]" />
                 5. Đề xuất cách xử lý
               </h3>
               <ul className="list-disc pl-5 space-y-1 text-xs text-[var(--mw-muted)]">

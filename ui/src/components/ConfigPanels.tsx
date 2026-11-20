@@ -137,23 +137,19 @@ const RESULT_STATUS_META: Record<
 > = {
   completed: {
     label: 'Hoàn thành',
-    className:
-      'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300',
+    className: 'border border-[var(--mw-border)] bg-[var(--mw-canvas)] text-[var(--mw-ink)]',
   },
   passed: {
     label: 'Đạt',
-    className:
-      'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300',
+    className: 'border border-[var(--mw-border)] bg-[var(--mw-canvas)] text-[var(--mw-ink)]',
   },
   needsFix: {
     label: 'Cần chỉnh sửa',
-    className:
-      'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300',
+    className: 'border border-[var(--mw-border)] bg-[var(--mw-surface)] text-[var(--mw-ink)]',
   },
   failed: {
     label: 'Thất bại',
-    className:
-      'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300',
+    className: 'border border-[var(--mw-danger)] bg-[var(--mw-danger-bg)] text-[var(--mw-danger)]',
   },
 };
 
@@ -384,20 +380,11 @@ const HistoryPanel: React.FC<{
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
-      <header className="mw-panel flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5">
-        <div className="flex items-start gap-3 min-w-0">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[var(--mw-tint)] text-[var(--mw-accent)]">
-            <History className="size-5" aria-hidden="true" />
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-base font-bold text-[var(--mw-ink)]">
-              Lịch sử &amp; Tài liệu gần đây
-            </h2>
-            <p className="mt-0.5 text-xs text-[var(--mw-muted)]">
-              Theo dõi các tài liệu đã chuẩn hóa, kiểm tra hoặc tạo từ mẫu để mở lại hoặc khôi phục nhanh.
-            </p>
-          </div>
-        </div>
+      <header className="mw-panel flex flex-wrap items-center justify-between gap-3 px-4 py-3.5">
+        <h2 className="text-base font-bold flex items-center gap-2 text-[var(--mw-ink)]">
+          <History className="size-4 text-[var(--mw-accent)]" aria-hidden="true" />
+          Lịch sử &amp; Tài liệu gần đây
+        </h2>
 
         <div className="flex flex-wrap items-center gap-2">
           {onPickFiles && (
@@ -514,10 +501,10 @@ const HistoryPanel: React.FC<{
 
                 return (
                   <tr key={`${item.path}::${item.resolvedOp}`} className="hover:bg-[var(--mw-canvas)]/60">
-                    <td className="py-3 px-4 font-semibold text-[var(--mw-ink)] max-w-[260px]">
+                    <td className="py-3 px-4 font-semibold text-[var(--mw-ink)]">
                       <div className="flex items-center gap-2 min-w-0">
                         <FileText className="size-4 shrink-0 text-[var(--mw-accent)]" aria-hidden="true" />
-                        <span className="truncate">{item.name}</span>
+                        <span className="break-words">{item.name}</span>
                       </div>
                     </td>
                     <td className="py-3 px-3 text-[11px] text-[var(--mw-muted)] whitespace-nowrap">
@@ -527,14 +514,14 @@ const HistoryPanel: React.FC<{
                       {OP_LABELS[item.resolvedOp]}
                     </td>
                     <td className="py-3 px-3 whitespace-nowrap">
-                      <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${badge.className}`}>
+                      <span className={`px-2 py-0.5 text-[11px] font-semibold ${badge.className}`}>
                         {badge.label}
                       </span>
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span
-                          className="text-[11px] text-[var(--mw-muted)] truncate max-w-[180px]"
+                          className="text-[11px] text-[var(--mw-muted)] break-all"
                           title={!isWebPath ? targetOpenPath : undefined}
                         >
                           {formatLocationDisplay(item)}
@@ -806,20 +793,13 @@ const SettingsWorkspace: React.FC<{
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
-      <header className="mw-panel p-4 sm:p-5 space-y-4">
-        <div className="flex items-start gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[var(--mw-tint)] text-[var(--mw-accent)]">
-            <Settings2 className="size-5" aria-hidden="true" />
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-base font-bold text-[var(--mw-ink)]">Cài đặt</h2>
-            <p className="mt-0.5 text-xs text-[var(--mw-muted)]">
-              Thiết lập thông tin cơ quan, quy chuẩn định dạng mặc định và sao lưu tài liệu.
-            </p>
-          </div>
-        </div>
+      <header className="mw-panel p-4 space-y-3">
+        <h2 className="text-base font-bold flex items-center gap-2 text-[var(--mw-ink)]">
+          <Settings2 className="size-4 text-[var(--mw-accent)]" aria-hidden="true" />
+          Cài đặt
+        </h2>
 
-        <div role="tablist" aria-label="Nhóm cài đặt" className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+        <div role="tablist" aria-label="Nhóm cài đặt" className="grid grid-cols-2 md:flex md:flex-wrap gap-2">
           {SETTINGS_GROUPS.map(({ id, label, icon: Icon }) => {
             const active = group === id;
             return (
@@ -829,14 +809,14 @@ const SettingsWorkspace: React.FC<{
                 role="tab"
                 aria-selected={active}
                 onClick={() => setGroup(id)}
-                className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs font-semibold transition-colors ${
+                className={`flex items-center gap-2 border px-3 py-1.5 text-left text-xs font-semibold transition-colors ${
                   active
                     ? 'border-[var(--mw-focus)] bg-[var(--mw-tint)] text-[var(--mw-ink)]'
                     : 'border-[var(--mw-border)] bg-[var(--mw-surface)] text-[var(--mw-muted)] hover:bg-[var(--mw-tint)]/50'
                 }`}
               >
-                <Icon className="size-4 shrink-0" aria-hidden="true" />
-                <span className="truncate">{label}</span>
+                <Icon className="size-3.5 shrink-0" aria-hidden="true" />
+                <span>{label}</span>
               </button>
             );
           })}
@@ -847,12 +827,7 @@ const SettingsWorkspace: React.FC<{
       {group === 'org' && (
         <form onSubmit={handleSaveOrg} className="mw-panel p-4 sm:p-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h3 className="text-sm font-bold text-[var(--mw-ink)]">A. Hồ sơ cơ quan</h3>
-              <p className="text-xs text-[var(--mw-muted)]">
-                Thông tin này tự động điền vào phần đầu và chữ ký khi tạo văn bản mới.
-              </p>
-            </div>
+            <h3 className="text-sm font-bold text-[var(--mw-ink)]">A. Hồ sơ cơ quan</h3>
             <button
               type="button"
               onClick={() => {
@@ -1036,13 +1011,8 @@ const SettingsWorkspace: React.FC<{
       {group === 'format' && (
         <div className="space-y-4">
           <div className="mw-panel p-4 sm:p-5 space-y-4">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <h3 className="text-sm font-bold text-[var(--mw-ink)]">B. Định dạng mặc định</h3>
-                <p className="text-xs text-[var(--mw-muted)]">
-                  Các thông số chuẩn áp dụng cho chữ viết, đoạn văn và làm sạch lỗi gõ.
-                </p>
-              </div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-bold text-[var(--mw-ink)]">B. Định dạng mặc định</h3>
               {applyPreset && (
                 <button
                   type="button"
@@ -1215,15 +1185,10 @@ const SettingsWorkspace: React.FC<{
       {group === 'page' && (
         <div className="space-y-4">
           <div className="mw-panel p-4 sm:p-5 space-y-4">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <h3 className="text-sm font-bold text-[var(--mw-ink)]">
-                  C. Trang giấy và Header/Footer
-                </h3>
-                <p className="text-xs text-[var(--mw-muted)]">
-                  Thiết lập khổ giấy, hướng trang, lề giấy, đánh số trang và định dạng bảng biểu.
-                </p>
-              </div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-bold text-[var(--mw-ink)]">
+                C. Trang giấy và Header/Footer
+              </h3>
               {applyPreset && (
                 <button
                   type="button"
