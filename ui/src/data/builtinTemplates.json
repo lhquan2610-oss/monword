@@ -1,0 +1,3004 @@
+[
+  {
+    "templateId": "adm-cong-van",
+    "name": "Công văn hành chính (NĐ 30/2020/NĐ-CP)",
+    "group": "administrative",
+    "docType": "congVan",
+    "scope": "adminNd30",
+    "description": "Mẫu Công văn theo Phụ lục I Nghị định 30/2020/NĐ-CP: không ghi chữ CÔNG VĂN ở giữa, trích yếu V/v đặt dưới Số/Ký hiệu tại ô trái.",
+    "isSystem": true,
+    "isDefaultForDocType": true,
+    "version": "1.0.0",
+    "status": "active",
+    "sourceDocxAssetId": null,
+    "detectedPlaceholders": ["ten_co_quan", "co_quan_chu_quan", "so_van_ban", "dia_danh", "ngay_thang", "trich_yeu", "nguoi_nhan", "chuc_vu", "nguoi_ky"],
+    "updatedAt": "2026-11-19",
+    "headerConfig": {
+      "enabled": true,
+      "baseAdminDocType": "congVan",
+      "customDocTypeLabel": "",
+      "symbolPrefix": "",
+      "useLeftCellSubject": true,
+      "showGoverningOrg": true,
+      "showIssuingOrg": true,
+      "showNationalHeader": true,
+      "respectOrgEnterpriseLayout": false,
+      "showNumberSymbol": true,
+      "showLocationDate": true,
+      "showDocTypeAndSubject": true,
+      "includeControlBox": false
+    },
+    "contentStructure": [
+      {
+        "sectionId": "cv-kinh-gui",
+        "title": "",
+        "kind": "recipientSalutation",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "center",
+        "headingBold": false,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": ["Kính gửi: {{nguoi_nhan}}"],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "cv-mo-dau",
+        "title": "",
+        "kind": "paragraphBlock",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "both",
+        "headingBold": false,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Nêu bối cảnh, căn cứ văn bản liên quan hoặc lý do phát hành công văn về việc {{trich_yeu}}.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "cv-noi-dung",
+        "title": "",
+        "kind": "paragraphBlock",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "both",
+        "headingBold": false,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Trình bày cụ thể nội dung đề nghị, trao đổi, hướng dẫn hoặc phúc đáp của {{ten_co_quan}}.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "cv-phoi-hop",
+        "title": "",
+        "kind": "paragraphBlock",
+        "required": false,
+        "enabledByDefault": true,
+        "headingAlignment": "both",
+        "headingBold": false,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập (tùy chọn): Thời hạn phản hồi, đầu mối liên hệ (Họ tên, số điện thoại/email công vụ) và lời đề nghị phối hợp.]"
+        ],
+        "inlineTable": null
+      }
+    ],
+    "footerConfig": {
+      "showRecipientList": true,
+      "recipientHeaderLabel": "Nơi nhận:",
+      "defaultRecipients": ["- {{nguoi_nhan}};", "- Lưu: VT, [Đơn vị soạn thảo]."],
+      "includePageNumbers": true,
+      "pageNumberPosition": "topCenter",
+      "footerNoteTemplate": ""
+    },
+    "signatureConfig": {
+      "layout": "singleRight",
+      "authorityMode": "",
+      "authorityPrefixLabel": "",
+      "signerTitlePlaceholder": "{{chuc_vu}}",
+      "signerNamePlaceholder": "{{nguoi_ky}}",
+      "leftColumnTitle": "",
+      "middleColumnTitle": "",
+      "blankLinesForSeal": 3
+    },
+    "tableConfig": {
+      "defaultFontName": "Times New Roman",
+      "defaultFontSizePt": 13,
+      "headerBold": true,
+      "repeatHeaderRow": true,
+      "preventRowSplit": true,
+      "borderStyle": "single",
+      "borderSizeEighthsPt": 4,
+      "cellPaddingTopBottomTwips": 60,
+      "cellPaddingLeftRightTwips": 108,
+      "fitToPrintableWidth": true
+    },
+    "formatRules": {
+      "paperSize": "a4",
+      "marginTopMm": 20,
+      "marginBottomMm": 20,
+      "marginLeftMm": 30,
+      "marginRightMm": 15,
+      "fontFamily": "Times New Roman",
+      "bodyFontSizePt": 14,
+      "lineSpacingMultiple": 1.15,
+      "spaceBeforePt": 0,
+      "spaceAfterPt": 6,
+      "firstLineIndentCm": 1.0,
+      "bodyAlignment": "both",
+      "enforceCompatibilityCheck": true
+    }
+  },
+  {
+    "templateId": "adm-to-trinh",
+    "name": "Tờ trình hành chính (NĐ 30/2020/NĐ-CP)",
+    "group": "administrative",
+    "docType": "toTrinh",
+    "scope": "adminNd30",
+    "description": "Mẫu Tờ trình có tên loại TỜ TRÌNH căn giữa, phần Kính gửi cấp có thẩm quyền, các mục I–III và bảng phương án tùy chọn.",
+    "isSystem": true,
+    "isDefaultForDocType": true,
+    "version": "1.0.0",
+    "status": "active",
+    "sourceDocxAssetId": null,
+    "detectedPlaceholders": ["ten_co_quan", "co_quan_chu_quan", "so_van_ban", "dia_danh", "ngay_thang", "trich_yeu", "nguoi_nhan", "chuc_vu", "nguoi_ky"],
+    "updatedAt": "2026-11-19",
+    "headerConfig": {
+      "enabled": true,
+      "baseAdminDocType": "toTrinh",
+      "customDocTypeLabel": "TỜ TRÌNH",
+      "symbolPrefix": "TTr",
+      "useLeftCellSubject": false,
+      "showGoverningOrg": true,
+      "showIssuingOrg": true,
+      "showNationalHeader": true,
+      "respectOrgEnterpriseLayout": false,
+      "showNumberSymbol": true,
+      "showLocationDate": true,
+      "showDocTypeAndSubject": true,
+      "includeControlBox": false
+    },
+    "contentStructure": [
+      {
+        "sectionId": "ttr-kinh-gui",
+        "title": "",
+        "kind": "recipientSalutation",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "center",
+        "headingBold": false,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": ["Kính gửi: {{nguoi_nhan}}"],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "ttr-muc-1",
+        "title": "I. SỰ CẦN THIẾT VÀ CĂN CỨ ĐỀ XUẤT",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": true,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Liệt kê các căn cứ thực tế và lý do {{ten_co_quan}} trình nội dung {{trich_yeu}}.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "ttr-muc-2",
+        "title": "II. NỘI DUNG TRÌNH VÀ PHƯƠNG ÁN ĐỀ XUẤT",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": true,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Trình bày chi tiết các phương án, phạm vi thực hiện, dự kiến nguồn lực và tác động.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "ttr-bang-phuong-an",
+        "title": "Bảng tổng hợp hạng mục đề xuất",
+        "kind": "tableBlock",
+        "required": false,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": true,
+        "headingUppercase": false,
+        "bodyParagraphs": [],
+        "inlineTable": {
+          "caption": "Bảng 1: Tổng hợp các hạng mục trình duyệt",
+          "columns": [
+            { "header": "STT", "widthPct": 10, "align": "center" },
+            { "header": "Nội dung hạng mục", "widthPct": 45, "align": "left" },
+            { "header": "Đơn vị thực hiện", "widthPct": 25, "align": "left" },
+            { "header": "Ghi chú", "widthPct": 20, "align": "left" }
+          ],
+          "sampleRows": [
+            ["1", "[Nhập nội dung hạng mục 1]", "[Nhập đơn vị]", "[Ghi chú]"],
+            ["2", "[Nhập nội dung hạng mục 2]", "[Nhập đơn vị]", "[Ghi chú]"]
+          ]
+        }
+      },
+      {
+        "sectionId": "ttr-muc-3",
+        "title": "III. KIẾN NGHỊ, ĐỀ XUẤT",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": true,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Nêu rõ đề xuất cấp có thẩm quyền xem xét, phê duyệt và tài liệu gửi kèm (nếu có).]"
+        ],
+        "inlineTable": null
+      }
+    ],
+    "footerConfig": {
+      "showRecipientList": true,
+      "recipientHeaderLabel": "Nơi nhận:",
+      "defaultRecipients": ["- {{nguoi_nhan}};", "- Lưu: VT, [Đơn vị soạn thảo]."],
+      "includePageNumbers": true,
+      "pageNumberPosition": "topCenter",
+      "footerNoteTemplate": ""
+    },
+    "signatureConfig": {
+      "layout": "singleRight",
+      "authorityMode": "",
+      "authorityPrefixLabel": "",
+      "signerTitlePlaceholder": "{{chuc_vu}}",
+      "signerNamePlaceholder": "{{nguoi_ky}}",
+      "leftColumnTitle": "",
+      "middleColumnTitle": "",
+      "blankLinesForSeal": 3
+    },
+    "tableConfig": {
+      "defaultFontName": "Times New Roman",
+      "defaultFontSizePt": 13,
+      "headerBold": true,
+      "repeatHeaderRow": true,
+      "preventRowSplit": true,
+      "borderStyle": "single",
+      "borderSizeEighthsPt": 4,
+      "cellPaddingTopBottomTwips": 60,
+      "cellPaddingLeftRightTwips": 108,
+      "fitToPrintableWidth": true
+    },
+    "formatRules": {
+      "paperSize": "a4",
+      "marginTopMm": 20,
+      "marginBottomMm": 20,
+      "marginLeftMm": 30,
+      "marginRightMm": 15,
+      "fontFamily": "Times New Roman",
+      "bodyFontSizePt": 14,
+      "lineSpacingMultiple": 1.15,
+      "spaceBeforePt": 0,
+      "spaceAfterPt": 6,
+      "firstLineIndentCm": 1.0,
+      "bodyAlignment": "both",
+      "enforceCompatibilityCheck": true
+    }
+  },
+  {
+    "templateId": "adm-bao-cao",
+    "name": "Báo cáo hành chính (NĐ 30/2020/NĐ-CP)",
+    "group": "administrative",
+    "docType": "baoCao",
+    "scope": "adminNd30",
+    "description": "Mẫu Báo cáo gồm phần I (Kết quả), bảng số liệu tổng hợp tùy chọn, phần II (Đánh giá tồn tại) và phần III (Phương hướng, kiến nghị).",
+    "isSystem": true,
+    "isDefaultForDocType": true,
+    "version": "1.0.0",
+    "status": "active",
+    "sourceDocxAssetId": null,
+    "detectedPlaceholders": ["ten_co_quan", "co_quan_chu_quan", "so_van_ban", "dia_danh", "ngay_thang", "trich_yeu", "nguoi_nhan", "chuc_vu", "nguoi_ky"],
+    "updatedAt": "2026-11-19",
+    "headerConfig": {
+      "enabled": true,
+      "baseAdminDocType": "baoCao",
+      "customDocTypeLabel": "BÁO CÁO",
+      "symbolPrefix": "BC",
+      "useLeftCellSubject": false,
+      "showGoverningOrg": true,
+      "showIssuingOrg": true,
+      "showNationalHeader": true,
+      "respectOrgEnterpriseLayout": false,
+      "showNumberSymbol": true,
+      "showLocationDate": true,
+      "showDocTypeAndSubject": true,
+      "includeControlBox": false
+    },
+    "contentStructure": [
+      {
+        "sectionId": "bc-kinh-gui",
+        "title": "",
+        "kind": "recipientSalutation",
+        "required": false,
+        "enabledByDefault": true,
+        "headingAlignment": "center",
+        "headingBold": false,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": ["Kính gửi: {{nguoi_nhan}}"],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "bc-phan-1",
+        "title": "Phần I. TÌNH HÌNH VÀ KẾT QUẢ THỰC HIỆN",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Tổng hợp tình hình triển khai và kết quả đạt được của {{ten_co_quan}} về {{trich_yeu}} trong kỳ báo cáo.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "bc-bang-so-lieu",
+        "title": "Bảng tổng hợp số liệu kết quả",
+        "kind": "tableBlock",
+        "required": false,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": true,
+        "headingUppercase": false,
+        "bodyParagraphs": [],
+        "inlineTable": {
+          "caption": "Bảng 1: Số liệu kết quả thực hiện theo chỉ tiêu",
+          "columns": [
+            { "header": "TT", "widthPct": 10, "align": "center" },
+            { "header": "Chỉ tiêu / Nhiệm vụ", "widthPct": 45, "align": "left" },
+            { "header": "Kế hoạch", "widthPct": 22, "align": "right" },
+            { "header": "Thực hiện", "widthPct": 23, "align": "right" }
+          ],
+          "sampleRows": [
+            ["1", "[Nhập tên chỉ tiêu 1]", "[Số liệu]", "[Số liệu]"],
+            ["2", "[Nhập tên chỉ tiêu 2]", "[Số liệu]", "[Số liệu]"]
+          ]
+        }
+      },
+      {
+        "sectionId": "bc-phan-2",
+        "title": "Phần II. ĐÁNH GIÁ CHUNG, TỒN TẠI VÀ NGUYÊN NHÂN",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Nêu rõ ưu điểm nổi bật, những tồn tại/hạn chế và nguyên nhân khách quan, chủ quan.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "bc-phan-3",
+        "title": "Phần III. PHƯƠNG HƯỚNG, NHIỆM VỤ VÀ KIẾN NGHỊ",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Đề xuất nhiệm vụ trọng tâm kỳ tới và kiến nghị với {{nguoi_nhan}}.]"
+        ],
+        "inlineTable": null
+      }
+    ],
+    "footerConfig": {
+      "showRecipientList": true,
+      "recipientHeaderLabel": "Nơi nhận:",
+      "defaultRecipients": ["- {{nguoi_nhan}};", "- Lưu: VT, [Bộ phận tổng hợp]."],
+      "includePageNumbers": true,
+      "pageNumberPosition": "topCenter",
+      "footerNoteTemplate": ""
+    },
+    "signatureConfig": {
+      "layout": "singleRight",
+      "authorityMode": "",
+      "authorityPrefixLabel": "",
+      "signerTitlePlaceholder": "{{chuc_vu}}",
+      "signerNamePlaceholder": "{{nguoi_ky}}",
+      "leftColumnTitle": "",
+      "middleColumnTitle": "",
+      "blankLinesForSeal": 3
+    },
+    "tableConfig": {
+      "defaultFontName": "Times New Roman",
+      "defaultFontSizePt": 13,
+      "headerBold": true,
+      "repeatHeaderRow": true,
+      "preventRowSplit": true,
+      "borderStyle": "single",
+      "borderSizeEighthsPt": 4,
+      "cellPaddingTopBottomTwips": 60,
+      "cellPaddingLeftRightTwips": 108,
+      "fitToPrintableWidth": true
+    },
+    "formatRules": {
+      "paperSize": "a4",
+      "marginTopMm": 20,
+      "marginBottomMm": 20,
+      "marginLeftMm": 30,
+      "marginRightMm": 15,
+      "fontFamily": "Times New Roman",
+      "bodyFontSizePt": 14,
+      "lineSpacingMultiple": 1.15,
+      "spaceBeforePt": 0,
+      "spaceAfterPt": 6,
+      "firstLineIndentCm": 1.0,
+      "bodyAlignment": "both",
+      "enforceCompatibilityCheck": true
+    }
+  },
+  {
+    "templateId": "adm-quyet-dinh",
+    "name": "Quyết định hành chính (NĐ 30/2020/NĐ-CP)",
+    "group": "administrative",
+    "docType": "quyetDinh",
+    "scope": "adminNd30",
+    "description": "Mẫu Quyết định cá biệt theo Phụ lục I NĐ 30: Thẩm quyền ban hành, khối Căn cứ (in nghiêng), tiêu đề QUYẾT ĐỊNH: căn giữa và cấu trúc Điều 1..3.",
+    "isSystem": true,
+    "isDefaultForDocType": true,
+    "version": "1.0.0",
+    "status": "active",
+    "sourceDocxAssetId": null,
+    "detectedPlaceholders": ["ten_co_quan", "co_quan_chu_quan", "so_van_ban", "dia_danh", "ngay_thang", "trich_yeu", "nguoi_nhan", "chuc_vu", "nguoi_ky"],
+    "updatedAt": "2026-11-19",
+    "headerConfig": {
+      "enabled": true,
+      "baseAdminDocType": "quyetDinh",
+      "customDocTypeLabel": "QUYẾT ĐỊNH",
+      "symbolPrefix": "QĐ",
+      "useLeftCellSubject": false,
+      "showGoverningOrg": true,
+      "showIssuingOrg": true,
+      "showNationalHeader": true,
+      "respectOrgEnterpriseLayout": false,
+      "showNumberSymbol": true,
+      "showLocationDate": true,
+      "showDocTypeAndSubject": true,
+      "includeControlBox": false
+    },
+    "contentStructure": [
+      {
+        "sectionId": "qd-tham-quyen",
+        "title": "",
+        "kind": "authorityHeading",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "center",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": true,
+        "bodyParagraphs": ["{{chuc_vu}} {{ten_co_quan}}"],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "qd-can-cu",
+        "title": "",
+        "kind": "preambleBasis",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "both",
+        "headingBold": false,
+        "headingItalic": true,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "Căn cứ [Nhập chức năng, nhiệm vụ, quyền hạn của {{ten_co_quan}}];",
+          "Căn cứ [Nhập văn bản quy định hoặc phê duyệt liên quan do người dùng xác định];",
+          "Theo đề nghị của [Nhập tên đơn vị/cá nhân tham mưu trình]."
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "qd-tu-khoa",
+        "title": "QUYẾT ĐỊNH:",
+        "kind": "decisionKeyword",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "center",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": true,
+        "bodyParagraphs": [],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "qd-dieu-khoan",
+        "title": "",
+        "kind": "articleClause",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "both",
+        "headingBold": false,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "Điều 1. [Hướng dẫn nhập: Quy định phạm vi, đối tượng, nội dung chính của {{trich_yeu}}.]",
+          "Điều 2. [Hướng dẫn nhập: Hiệu lực thi hành và trách nhiệm triển khai của các bộ phận.]",
+          "Điều 3. {{nguoi_nhan}} và các tổ chức, cá nhân có liên quan chịu trách nhiệm thi hành Quyết định này./."
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "qd-phu-luc-bang",
+        "title": "Bảng phân công / Danh mục kèm theo Quyết định",
+        "kind": "tableBlock",
+        "required": false,
+        "enabledByDefault": false,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [],
+        "inlineTable": {
+          "caption": "Bảng kèm theo Quyết định",
+          "columns": [
+            { "header": "STT", "widthPct": 10, "align": "center" },
+            { "header": "Đối tượng / Hạng mục", "widthPct": 50, "align": "left" },
+            { "header": "Nhiệm vụ / Mức áp dụng", "widthPct": 40, "align": "left" }
+          ],
+          "sampleRows": [
+            ["1", "[Nhập mục 1]", "[Nhập nội dung]"],
+            ["2", "[Nhập mục 2]", "[Nhập nội dung]"]
+          ]
+        }
+      }
+    ],
+    "footerConfig": {
+      "showRecipientList": true,
+      "recipientHeaderLabel": "Nơi nhận:",
+      "defaultRecipients": ["- Như Điều 3;", "- {{nguoi_nhan}};", "- Lưu: VT."],
+      "includePageNumbers": true,
+      "pageNumberPosition": "topCenter",
+      "footerNoteTemplate": ""
+    },
+    "signatureConfig": {
+      "layout": "singleRight",
+      "authorityMode": "",
+      "authorityPrefixLabel": "",
+      "signerTitlePlaceholder": "{{chuc_vu}}",
+      "signerNamePlaceholder": "{{nguoi_ky}}",
+      "leftColumnTitle": "",
+      "middleColumnTitle": "",
+      "blankLinesForSeal": 3
+    },
+    "tableConfig": {
+      "defaultFontName": "Times New Roman",
+      "defaultFontSizePt": 13,
+      "headerBold": true,
+      "repeatHeaderRow": true,
+      "preventRowSplit": true,
+      "borderStyle": "single",
+      "borderSizeEighthsPt": 4,
+      "cellPaddingTopBottomTwips": 60,
+      "cellPaddingLeftRightTwips": 108,
+      "fitToPrintableWidth": true
+    },
+    "formatRules": {
+      "paperSize": "a4",
+      "marginTopMm": 20,
+      "marginBottomMm": 20,
+      "marginLeftMm": 30,
+      "marginRightMm": 15,
+      "fontFamily": "Times New Roman",
+      "bodyFontSizePt": 14,
+      "lineSpacingMultiple": 1.15,
+      "spaceBeforePt": 0,
+      "spaceAfterPt": 6,
+      "firstLineIndentCm": 1.0,
+      "bodyAlignment": "both",
+      "enforceCompatibilityCheck": true
+    }
+  },
+  {
+    "templateId": "adm-thong-bao",
+    "name": "Thông báo hành chính (NĐ 30/2020/NĐ-CP)",
+    "group": "administrative",
+    "docType": "thongBao",
+    "scope": "adminNd30",
+    "description": "Mẫu Thông báo kết luận, lịch công tác hoặc chủ trương điều hành với bố cục đánh số rõ ràng.",
+    "isSystem": true,
+    "isDefaultForDocType": true,
+    "version": "1.0.0",
+    "status": "active",
+    "sourceDocxAssetId": null,
+    "detectedPlaceholders": ["ten_co_quan", "co_quan_chu_quan", "so_van_ban", "dia_danh", "ngay_thang", "trich_yeu", "nguoi_nhan", "chuc_vu", "nguoi_ky"],
+    "updatedAt": "2026-11-19",
+    "headerConfig": {
+      "enabled": true,
+      "baseAdminDocType": "thongBao",
+      "customDocTypeLabel": "THÔNG BÁO",
+      "symbolPrefix": "TB",
+      "useLeftCellSubject": false,
+      "showGoverningOrg": true,
+      "showIssuingOrg": true,
+      "showNationalHeader": true,
+      "respectOrgEnterpriseLayout": false,
+      "showNumberSymbol": true,
+      "showLocationDate": true,
+      "showDocTypeAndSubject": true,
+      "includeControlBox": false
+    },
+    "contentStructure": [
+      {
+        "sectionId": "tb-dan",
+        "title": "",
+        "kind": "paragraphBlock",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "both",
+        "headingBold": false,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "{{ten_co_quan}} thông báo tới {{nguoi_nhan}} về {{trich_yeu}} như sau:"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "tb-muc-1",
+        "title": "1. Nội dung thông báo",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Ghi rõ các kết luận, nội dung thay đổi, yêu cầu hoặc thông tin cần phổ biến.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "tb-muc-2",
+        "title": "2. Thời gian, địa điểm và đối tượng áp dụng",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Nêu thời gian hiệu lực, thời điểm áp dụng, địa điểm (nếu có) và phạm vi đối tượng thực hiện.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "tb-muc-3",
+        "title": "3. Tổ chức thực hiện và đầu mối liên hệ",
+        "kind": "headingSection",
+        "required": false,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập (tùy chọn): Phân công bộ phận đầu mối hướng dẫn và thông tin liên hệ khi cần hỗ trợ.]"
+        ],
+        "inlineTable": null
+      }
+    ],
+    "footerConfig": {
+      "showRecipientList": true,
+      "recipientHeaderLabel": "Nơi nhận:",
+      "defaultRecipients": ["- {{nguoi_nhan}};", "- Lưu: VT."],
+      "includePageNumbers": true,
+      "pageNumberPosition": "topCenter",
+      "footerNoteTemplate": ""
+    },
+    "signatureConfig": {
+      "layout": "singleRight",
+      "authorityMode": "",
+      "authorityPrefixLabel": "",
+      "signerTitlePlaceholder": "{{chuc_vu}}",
+      "signerNamePlaceholder": "{{nguoi_ky}}",
+      "leftColumnTitle": "",
+      "middleColumnTitle": "",
+      "blankLinesForSeal": 3
+    },
+    "tableConfig": {
+      "defaultFontName": "Times New Roman",
+      "defaultFontSizePt": 13,
+      "headerBold": true,
+      "repeatHeaderRow": true,
+      "preventRowSplit": true,
+      "borderStyle": "single",
+      "borderSizeEighthsPt": 4,
+      "cellPaddingTopBottomTwips": 60,
+      "cellPaddingLeftRightTwips": 108,
+      "fitToPrintableWidth": true
+    },
+    "formatRules": {
+      "paperSize": "a4",
+      "marginTopMm": 20,
+      "marginBottomMm": 20,
+      "marginLeftMm": 30,
+      "marginRightMm": 15,
+      "fontFamily": "Times New Roman",
+      "bodyFontSizePt": 14,
+      "lineSpacingMultiple": 1.15,
+      "spaceBeforePt": 0,
+      "spaceAfterPt": 6,
+      "firstLineIndentCm": 1.0,
+      "bodyAlignment": "both",
+      "enforceCompatibilityCheck": true
+    }
+  },
+  {
+    "templateId": "adm-bien-ban",
+    "name": "Biên bản hành chính (NĐ 30/2020/NĐ-CP)",
+    "group": "administrative",
+    "docType": "bienBan",
+    "scope": "adminNd30",
+    "description": "Mẫu Biên bản với chữ ký song song (NGƯỜI GHI BIÊN BẢN / CHỦ TỌA), ghi nhận thời gian mở đầu - kết thúc trong nội dung.",
+    "isSystem": true,
+    "isDefaultForDocType": true,
+    "version": "1.0.0",
+    "status": "active",
+    "sourceDocxAssetId": null,
+    "detectedPlaceholders": ["ten_co_quan", "co_quan_chu_quan", "so_van_ban", "dia_danh", "ngay_thang", "trich_yeu", "nguoi_nhan", "chuc_vu", "nguoi_ky"],
+    "updatedAt": "2026-11-19",
+    "headerConfig": {
+      "enabled": true,
+      "baseAdminDocType": "bienBan",
+      "customDocTypeLabel": "BIÊN BẢN",
+      "symbolPrefix": "BB",
+      "useLeftCellSubject": false,
+      "showGoverningOrg": true,
+      "showIssuingOrg": true,
+      "showNationalHeader": true,
+      "respectOrgEnterpriseLayout": false,
+      "showNumberSymbol": true,
+      "showLocationDate": false,
+      "showDocTypeAndSubject": true,
+      "includeControlBox": false
+    },
+    "contentStructure": [
+      {
+        "sectionId": "bb-thoi-gian-dia-diem",
+        "title": "",
+        "kind": "metadataBlock",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "both",
+        "headingBold": false,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "Thời gian bắt đầu: [Nhập giờ] giờ [Nhập phút], {{ngay_thang}}.",
+          "Địa điểm: Tại {{dia_danh}} - [Nhập phòng/địa chỉ cụ thể]."
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "bb-thanh-phan",
+        "title": "1. Thành phần tham dự",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "- Chủ trì: {{nguoi_ky}} - {{chuc_vu}};",
+          "- Thư ký ghi biên bản: [Nhập họ tên, chức vụ thư ký];",
+          "- Thành viên tham dự: {{nguoi_nhan}}."
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "bb-noi-dung",
+        "title": "2. Nội dung / Diễn biến",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Ghi chép trung thực ý kiến trình bày, thảo luận hoặc kết quả kiểm tra, bàn giao về {{trich_yeu}}.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "bb-bang-kiem-ke",
+        "title": "Bảng ghi nhận số liệu / hiện trạng (tùy chọn)",
+        "kind": "tableBlock",
+        "required": false,
+        "enabledByDefault": false,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [],
+        "inlineTable": {
+          "caption": "Bảng ghi nhận hiện trạng / danh mục",
+          "columns": [
+            { "header": "STT", "widthPct": 10, "align": "center" },
+            { "header": "Nội dung / Tài sản", "widthPct": 45, "align": "left" },
+            { "header": "Số lượng / Tình trạng", "widthPct": 25, "align": "left" },
+            { "header": "Ghi chú", "widthPct": 20, "align": "left" }
+          ],
+          "sampleRows": [
+            ["1", "[Nhập mục 1]", "[Nhập hiện trạng]", "[Ghi chú]"]
+          ]
+        }
+      },
+      {
+        "sectionId": "bb-ket-luan",
+        "title": "3. Kết luận và nội dung thống nhất",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Tổng hợp các nội dung đã được thống nhất và xác nhận chữ ký của các bên.]",
+          "Biên bản kết thúc vào hồi [Nhập giờ] giờ [Nhập phút] cùng ngày, đã đọc lại cho mọi người cùng nghe và ký tên xác nhận./."
+        ],
+        "inlineTable": null
+      }
+    ],
+    "footerConfig": {
+      "showRecipientList": false,
+      "recipientHeaderLabel": "Nơi nhận:",
+      "defaultRecipients": [],
+      "includePageNumbers": true,
+      "pageNumberPosition": "topCenter",
+      "footerNoteTemplate": ""
+    },
+    "signatureConfig": {
+      "layout": "dualSecretaryChair",
+      "authorityMode": "",
+      "authorityPrefixLabel": "",
+      "signerTitlePlaceholder": "{{chuc_vu}}",
+      "signerNamePlaceholder": "{{nguoi_ky}}",
+      "leftColumnTitle": "THƯ KÝ",
+      "middleColumnTitle": "",
+      "blankLinesForSeal": 3
+    },
+    "tableConfig": {
+      "defaultFontName": "Times New Roman",
+      "defaultFontSizePt": 13,
+      "headerBold": true,
+      "repeatHeaderRow": true,
+      "preventRowSplit": true,
+      "borderStyle": "single",
+      "borderSizeEighthsPt": 4,
+      "cellPaddingTopBottomTwips": 60,
+      "cellPaddingLeftRightTwips": 108,
+      "fitToPrintableWidth": true
+    },
+    "formatRules": {
+      "paperSize": "a4",
+      "marginTopMm": 20,
+      "marginBottomMm": 20,
+      "marginLeftMm": 30,
+      "marginRightMm": 15,
+      "fontFamily": "Times New Roman",
+      "bodyFontSizePt": 14,
+      "lineSpacingMultiple": 1.15,
+      "spaceBeforePt": 0,
+      "spaceAfterPt": 6,
+      "firstLineIndentCm": 1.0,
+      "bodyAlignment": "both",
+      "enforceCompatibilityCheck": true
+    }
+  },
+  {
+    "templateId": "adm-ke-hoach",
+    "name": "Kế hoạch hành chính (NĐ 30/2020/NĐ-CP)",
+    "group": "administrative",
+    "docType": "keHoach",
+    "scope": "adminNd30",
+    "description": "Mẫu Kế hoạch có Mục đích/Yêu cầu, Bảng phân công nhiệm vụ - mốc tiến độ bắt buộc và Tổ chức thực hiện.",
+    "isSystem": true,
+    "isDefaultForDocType": true,
+    "version": "1.0.0",
+    "status": "active",
+    "sourceDocxAssetId": null,
+    "detectedPlaceholders": ["ten_co_quan", "co_quan_chu_quan", "so_van_ban", "dia_danh", "ngay_thang", "trich_yeu", "nguoi_nhan", "chuc_vu", "nguoi_ky"],
+    "updatedAt": "2026-11-19",
+    "headerConfig": {
+      "enabled": true,
+      "baseAdminDocType": "keHoach",
+      "customDocTypeLabel": "KẾ HOẠCH",
+      "symbolPrefix": "KH",
+      "useLeftCellSubject": false,
+      "showGoverningOrg": true,
+      "showIssuingOrg": true,
+      "showNationalHeader": true,
+      "respectOrgEnterpriseLayout": false,
+      "showNumberSymbol": true,
+      "showLocationDate": true,
+      "showDocTypeAndSubject": true,
+      "includeControlBox": false
+    },
+    "contentStructure": [
+      {
+        "sectionId": "kh-muc-1",
+        "title": "I. MỤC ĐÍCH, YÊU CẦU",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": true,
+        "bodyParagraphs": [
+          "1. Mục đích: [Hướng dẫn nhập: Nêu mục tiêu cần đạt khi thực hiện {{trich_yeu}}.]",
+          "2. Yêu cầu: [Hướng dẫn nhập: Nêu nguyên tắc, tiêu chuẩn chất lượng và kỷ luật tiến độ.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "kh-muc-2",
+        "title": "II. NỘI DUNG VÀ TIẾN ĐỘ THỰC HIỆN",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": true,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Mô tả phạm vi công việc và các giai đoạn triển khai chính của {{ten_co_quan}}.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "kh-bang-phan-cong",
+        "title": "Bảng phân công nhiệm vụ và tiến độ",
+        "kind": "tableBlock",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [],
+        "inlineTable": {
+          "caption": "Bảng phân công thực hiện kế hoạch",
+          "columns": [
+            { "header": "TT", "widthPct": 8, "align": "center" },
+            { "header": "Nội dung công việc", "widthPct": 34, "align": "left" },
+            { "header": "Đơn vị chủ trì", "widthPct": 22, "align": "left" },
+            { "header": "Phối hợp", "widthPct": 18, "align": "left" },
+            { "header": "Thời hạn", "widthPct": 18, "align": "center" }
+          ],
+          "sampleRows": [
+            ["1", "[Nhập đầu việc 1]", "[Đơn vị chủ trì]", "[Phối hợp]", "[Mốc ngày]"],
+            ["2", "[Nhập đầu việc 2]", "[Đơn vị chủ trì]", "[Phối hợp]", "[Mốc ngày]"]
+          ]
+        }
+      },
+      {
+        "sectionId": "kh-kinh-phi",
+        "title": "III. KINH PHÍ VÀ ĐIỀU KIỆN BẢO ĐẢM",
+        "kind": "headingSection",
+        "required": false,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": true,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập (tùy chọn): Nguồn kinh phí bảo đảm, trang thiết bị hoặc điều kiện phối hợp.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "kh-to-chuc",
+        "title": "IV. TỔ CHỨC THỰC HIỆN",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": true,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Giao trách nhiệm đôn đốc, kiểm tra và chế độ báo cáo kết quả thực hiện cho {{nguoi_nhan}}.]"
+        ],
+        "inlineTable": null
+      }
+    ],
+    "footerConfig": {
+      "showRecipientList": true,
+      "recipientHeaderLabel": "Nơi nhận:",
+      "defaultRecipients": ["- {{nguoi_nhan}};", "- Lưu: VT."],
+      "includePageNumbers": true,
+      "pageNumberPosition": "topCenter",
+      "footerNoteTemplate": ""
+    },
+    "signatureConfig": {
+      "layout": "singleRight",
+      "authorityMode": "",
+      "authorityPrefixLabel": "",
+      "signerTitlePlaceholder": "{{chuc_vu}}",
+      "signerNamePlaceholder": "{{nguoi_ky}}",
+      "leftColumnTitle": "",
+      "middleColumnTitle": "",
+      "blankLinesForSeal": 3
+    },
+    "tableConfig": {
+      "defaultFontName": "Times New Roman",
+      "defaultFontSizePt": 13,
+      "headerBold": true,
+      "repeatHeaderRow": true,
+      "preventRowSplit": true,
+      "borderStyle": "single",
+      "borderSizeEighthsPt": 4,
+      "cellPaddingTopBottomTwips": 60,
+      "cellPaddingLeftRightTwips": 108,
+      "fitToPrintableWidth": true
+    },
+    "formatRules": {
+      "paperSize": "a4",
+      "marginTopMm": 20,
+      "marginBottomMm": 20,
+      "marginLeftMm": 30,
+      "marginRightMm": 15,
+      "fontFamily": "Times New Roman",
+      "bodyFontSizePt": 14,
+      "lineSpacingMultiple": 1.15,
+      "spaceBeforePt": 0,
+      "spaceAfterPt": 6,
+      "firstLineIndentCm": 1.0,
+      "bodyAlignment": "both",
+      "enforceCompatibilityCheck": true
+    }
+  },
+  {
+    "templateId": "adm-giay-moi",
+    "name": "Giấy mời (NĐ 30/2020/NĐ-CP)",
+    "group": "administrative",
+    "docType": "giayMoi",
+    "scope": "adminNd30",
+    "description": "Mẫu Giấy mời họp/hội nghị theo Phụ lục I & III (ký hiệu GM), có khối Kính mời, Thời gian, Địa điểm và Chương trình dự kiến.",
+    "isSystem": true,
+    "isDefaultForDocType": true,
+    "version": "1.0.0",
+    "status": "active",
+    "sourceDocxAssetId": null,
+    "detectedPlaceholders": ["ten_co_quan", "co_quan_chu_quan", "so_van_ban", "dia_danh", "ngay_thang", "trich_yeu", "nguoi_nhan", "chuc_vu", "nguoi_ky"],
+    "updatedAt": "2026-11-19",
+    "headerConfig": {
+      "enabled": true,
+      "baseAdminDocType": "thongBao",
+      "customDocTypeLabel": "GIẤY MỜI",
+      "symbolPrefix": "GM",
+      "useLeftCellSubject": false,
+      "showGoverningOrg": true,
+      "showIssuingOrg": true,
+      "showNationalHeader": true,
+      "respectOrgEnterpriseLayout": false,
+      "showNumberSymbol": true,
+      "showLocationDate": true,
+      "showDocTypeAndSubject": true,
+      "includeControlBox": false
+    },
+    "contentStructure": [
+      {
+        "sectionId": "gm-kinh-moi",
+        "title": "",
+        "kind": "recipientSalutation",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "center",
+        "headingBold": false,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": ["Trân trọng kính mời: {{nguoi_nhan}}"],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "gm-noi-dung",
+        "title": "",
+        "kind": "paragraphBlock",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "both",
+        "headingBold": false,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "Tham dự cuộc họp / hội nghị về: {{trich_yeu}} do {{ten_co_quan}} tổ chức."
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "gm-thoi-gian-dia-diem",
+        "title": "Thông tin tổ chức",
+        "kind": "metadataBlock",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "- Chủ trì: [Nhập họ tên, chức vụ người chủ trì];",
+          "- Thời gian: [Nhập giờ, thứ, ngày/tháng/năm];",
+          "- Địa điểm: Tại {{dia_danh}} - [Nhập tên phòng họp / địa chỉ];",
+          "- Ghi chú chuẩn bị: [Nhập yêu cầu chuẩn bị báo cáo/tài liệu nếu có]."
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "gm-chuong-trinh-du-kien",
+        "title": "Chương trình chi tiết (tùy chọn)",
+        "kind": "tableBlock",
+        "required": false,
+        "enabledByDefault": false,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [],
+        "inlineTable": {
+          "caption": "Bảng chương trình dự kiến",
+          "columns": [
+            { "header": "Khung giờ", "widthPct": 22, "align": "center" },
+            { "header": "Nội dung", "widthPct": 48, "align": "left" },
+            { "header": "Đơn vị trình bày", "widthPct": 30, "align": "left" }
+          ],
+          "sampleRows": [
+            ["08:00 - 08:15", "[Nhập nội dung 1]", "[Đơn vị]"],
+            ["08:15 - 09:00", "[Nhập nội dung 2]", "[Đơn vị]"]
+          ]
+        }
+      }
+    ],
+    "footerConfig": {
+      "showRecipientList": true,
+      "recipientHeaderLabel": "Nơi nhận:",
+      "defaultRecipients": ["- {{nguoi_nhan}};", "- Lưu: VT."],
+      "includePageNumbers": false,
+      "pageNumberPosition": "topCenter",
+      "footerNoteTemplate": ""
+    },
+    "signatureConfig": {
+      "layout": "singleRight",
+      "authorityMode": "",
+      "authorityPrefixLabel": "",
+      "signerTitlePlaceholder": "{{chuc_vu}}",
+      "signerNamePlaceholder": "{{nguoi_ky}}",
+      "leftColumnTitle": "",
+      "middleColumnTitle": "",
+      "blankLinesForSeal": 3
+    },
+    "tableConfig": {
+      "defaultFontName": "Times New Roman",
+      "defaultFontSizePt": 13,
+      "headerBold": true,
+      "repeatHeaderRow": true,
+      "preventRowSplit": true,
+      "borderStyle": "single",
+      "borderSizeEighthsPt": 4,
+      "cellPaddingTopBottomTwips": 60,
+      "cellPaddingLeftRightTwips": 108,
+      "fitToPrintableWidth": true
+    },
+    "formatRules": {
+      "paperSize": "a4",
+      "marginTopMm": 20,
+      "marginBottomMm": 20,
+      "marginLeftMm": 30,
+      "marginRightMm": 15,
+      "fontFamily": "Times New Roman",
+      "bodyFontSizePt": 14,
+      "lineSpacingMultiple": 1.15,
+      "spaceBeforePt": 0,
+      "spaceAfterPt": 6,
+      "firstLineIndentCm": 1.0,
+      "bodyAlignment": "both",
+      "enforceCompatibilityCheck": true
+    }
+  },
+  {
+    "templateId": "adm-quy-che",
+    "name": "Quy chế hành chính (NĐ 30/2020/NĐ-CP)",
+    "group": "administrative",
+    "docType": "quyChe",
+    "scope": "adminNd30",
+    "description": "Mẫu Quy chế cấu trúc theo Chương I–III và các Điều khoản quy định chung, quy định cụ thể, tổ chức thực hiện.",
+    "isSystem": true,
+    "isDefaultForDocType": true,
+    "version": "1.0.0",
+    "status": "active",
+    "sourceDocxAssetId": null,
+    "detectedPlaceholders": ["ten_co_quan", "co_quan_chu_quan", "so_van_ban", "dia_danh", "ngay_thang", "trich_yeu", "nguoi_nhan", "chuc_vu", "nguoi_ky"],
+    "updatedAt": "2026-11-19",
+    "headerConfig": {
+      "enabled": true,
+      "baseAdminDocType": "quyChe",
+      "customDocTypeLabel": "QUY CHẾ",
+      "symbolPrefix": "QC",
+      "useLeftCellSubject": false,
+      "showGoverningOrg": true,
+      "showIssuingOrg": true,
+      "showNationalHeader": true,
+      "respectOrgEnterpriseLayout": false,
+      "showNumberSymbol": true,
+      "showLocationDate": true,
+      "showDocTypeAndSubject": true,
+      "includeControlBox": false
+    },
+    "contentStructure": [
+      {
+        "sectionId": "qc-chuong-1",
+        "title": "Chương I. QUY ĐỊNH CHUNG",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "center",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "Điều 1. Phạm vi điều chỉnh và đối tượng áp dụng: [Hướng dẫn nhập: Xác định rõ phạm vi của {{trich_yeu}} và đối tượng áp dụng thuộc {{ten_co_quan}}.]",
+          "Điều 2. Nguyên tắc chung: [Hướng dẫn nhập: Nêu các nguyên tắc cốt lõi mà quy chế điều chỉnh.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "qc-chuong-2",
+        "title": "Chương II. QUY ĐỊNH CỤ THỂ",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "center",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "Điều 3. Trách nhiệm và quyền hạn: [Hướng dẫn nhập: Phân định rõ quyền hạn, nhiệm vụ từng đơn vị/cá nhân.]",
+          "Điều 4. Trình tự, chế độ phối hợp và báo cáo: [Hướng dẫn nhập: Quy định trình tự xử lý, mốc thời gian và biểu mẫu áp dụng.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "qc-chuong-3",
+        "title": "Chương III. TỔ CHỨC THỰC HIỆN",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "center",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "Điều 5. Hiệu lực và điều khoản thi hành: [Hướng dẫn nhập: Quy định ngày có hiệu lực, trách nhiệm theo dõi, sửa đổi và bổ sung quy chế.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "qc-phu-luc",
+        "title": "Phụ lục danh mục biểu mẫu (tùy chọn)",
+        "kind": "tableBlock",
+        "required": false,
+        "enabledByDefault": false,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [],
+        "inlineTable": {
+          "caption": "Danh mục biểu mẫu kèm theo Quy chế",
+          "columns": [
+            { "header": "Ký hiệu", "widthPct": 20, "align": "center" },
+            { "header": "Tên biểu mẫu", "widthPct": 50, "align": "left" },
+            { "header": "Bộ phận áp dụng", "widthPct": 30, "align": "left" }
+          ],
+          "sampleRows": [
+            ["BM-01", "[Nhập tên biểu mẫu]", "[Bộ phận]"]
+          ]
+        }
+      }
+    ],
+    "footerConfig": {
+      "showRecipientList": true,
+      "recipientHeaderLabel": "Nơi nhận:",
+      "defaultRecipients": ["- {{nguoi_nhan}};", "- Lưu: VT."],
+      "includePageNumbers": true,
+      "pageNumberPosition": "topCenter",
+      "footerNoteTemplate": ""
+    },
+    "signatureConfig": {
+      "layout": "singleRight",
+      "authorityMode": "",
+      "authorityPrefixLabel": "",
+      "signerTitlePlaceholder": "{{chuc_vu}}",
+      "signerNamePlaceholder": "{{nguoi_ky}}",
+      "leftColumnTitle": "",
+      "middleColumnTitle": "",
+      "blankLinesForSeal": 3
+    },
+    "tableConfig": {
+      "defaultFontName": "Times New Roman",
+      "defaultFontSizePt": 13,
+      "headerBold": true,
+      "repeatHeaderRow": true,
+      "preventRowSplit": true,
+      "borderStyle": "single",
+      "borderSizeEighthsPt": 4,
+      "cellPaddingTopBottomTwips": 60,
+      "cellPaddingLeftRightTwips": 108,
+      "fitToPrintableWidth": true
+    },
+    "formatRules": {
+      "paperSize": "a4",
+      "marginTopMm": 20,
+      "marginBottomMm": 20,
+      "marginLeftMm": 30,
+      "marginRightMm": 15,
+      "fontFamily": "Times New Roman",
+      "bodyFontSizePt": 14,
+      "lineSpacingMultiple": 1.15,
+      "spaceBeforePt": 0,
+      "spaceAfterPt": 6,
+      "firstLineIndentCm": 1.0,
+      "bodyAlignment": "both",
+      "enforceCompatibilityCheck": true
+    }
+  },
+  {
+    "templateId": "adm-huong-dan",
+    "name": "Hướng dẫn nghiệp vụ (NĐ 30/2020/NĐ-CP)",
+    "group": "administrative",
+    "docType": "huongDan",
+    "scope": "adminNd30",
+    "description": "Mẫu Hướng dẫn thực hiện văn bản/nghiệp vụ (ký hiệu HD), gồm căn cứ, mục đích/đối tượng, trình tự hướng dẫn và bảng danh mục hồ sơ.",
+    "isSystem": true,
+    "isDefaultForDocType": true,
+    "version": "1.0.0",
+    "status": "active",
+    "sourceDocxAssetId": null,
+    "detectedPlaceholders": ["ten_co_quan", "co_quan_chu_quan", "so_van_ban", "dia_danh", "ngay_thang", "trich_yeu", "nguoi_nhan", "chuc_vu", "nguoi_ky"],
+    "updatedAt": "2026-11-19",
+    "headerConfig": {
+      "enabled": true,
+      "baseAdminDocType": "chiThi",
+      "customDocTypeLabel": "HƯỚNG DẪN",
+      "symbolPrefix": "HD",
+      "useLeftCellSubject": false,
+      "showGoverningOrg": true,
+      "showIssuingOrg": true,
+      "showNationalHeader": true,
+      "respectOrgEnterpriseLayout": false,
+      "showNumberSymbol": true,
+      "showLocationDate": true,
+      "showDocTypeAndSubject": true,
+      "includeControlBox": false
+    },
+    "contentStructure": [
+      {
+        "sectionId": "hd-can-cu",
+        "title": "",
+        "kind": "preambleBasis",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "both",
+        "headingBold": false,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "Thực hiện [Nhập tên văn bản gốc cần hướng dẫn], {{ten_co_quan}} hướng dẫn cụ thể việc triển khai {{trich_yeu}} đối với {{nguoi_nhan}} như sau:"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "hd-muc-1",
+        "title": "I. MỤC ĐÍCH VÀ ĐỐI TƯỢNG ÁP DỤNG",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": true,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Xác định mục đích thống nhất cách làm và phạm vi đối tượng thực hiện.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "hd-muc-2",
+        "title": "II. NỘI DUNG VÀ TRÌNH TỰ HƯỚNG DẪN",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": true,
+        "bodyParagraphs": [
+          "1. Hồ sơ, tài liệu chuẩn bị: [Hướng dẫn nhập: Liệt kê thành phần hồ sơ cần có.]",
+          "2. Trình tự thực hiện từng bước: [Hướng dẫn nhập: Mô tả tuần tự các bước tiếp nhận, xử lý và trả kết quả.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "hd-bang-ho-so",
+        "title": "Bảng tiêu chí / Danh mục hồ sơ",
+        "kind": "tableBlock",
+        "required": false,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [],
+        "inlineTable": {
+          "caption": "Bảng hướng dẫn thành phần hồ sơ và đầu mối tiếp nhận",
+          "columns": [
+            { "header": "STT", "widthPct": 10, "align": "center" },
+            { "header": "Thành phần hồ sơ / Nội dung", "widthPct": 45, "align": "left" },
+            { "header": "Yêu cầu quy cách", "widthPct": 25, "align": "left" },
+            { "header": "Bộ phận tiếp nhận", "widthPct": 20, "align": "left" }
+          ],
+          "sampleRows": [
+            ["1", "[Nhập thành phần hồ sơ]", "[Bản chính / Bản sao]", "[Bộ phận]"]
+          ]
+        }
+      },
+      {
+        "sectionId": "hd-muc-3",
+        "title": "III. TỔ CHỨC THỰC HIỆN",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": true,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Nêu thời điểm áp dụng hướng dẫn và đầu mối giải đáp vướng mắc trong quá trình thực hiện.]"
+        ],
+        "inlineTable": null
+      }
+    ],
+    "footerConfig": {
+      "showRecipientList": true,
+      "recipientHeaderLabel": "Nơi nhận:",
+      "defaultRecipients": ["- {{nguoi_nhan}};", "- Lưu: VT."],
+      "includePageNumbers": true,
+      "pageNumberPosition": "topCenter",
+      "footerNoteTemplate": ""
+    },
+    "signatureConfig": {
+      "layout": "singleRight",
+      "authorityMode": "",
+      "authorityPrefixLabel": "",
+      "signerTitlePlaceholder": "{{chuc_vu}}",
+      "signerNamePlaceholder": "{{nguoi_ky}}",
+      "leftColumnTitle": "",
+      "middleColumnTitle": "",
+      "blankLinesForSeal": 3
+    },
+    "tableConfig": {
+      "defaultFontName": "Times New Roman",
+      "defaultFontSizePt": 13,
+      "headerBold": true,
+      "repeatHeaderRow": true,
+      "preventRowSplit": true,
+      "borderStyle": "single",
+      "borderSizeEighthsPt": 4,
+      "cellPaddingTopBottomTwips": 60,
+      "cellPaddingLeftRightTwips": 108,
+      "fitToPrintableWidth": true
+    },
+    "formatRules": {
+      "paperSize": "a4",
+      "marginTopMm": 20,
+      "marginBottomMm": 20,
+      "marginLeftMm": 30,
+      "marginRightMm": 15,
+      "fontFamily": "Times New Roman",
+      "bodyFontSizePt": 14,
+      "lineSpacingMultiple": 1.15,
+      "spaceBeforePt": 0,
+      "spaceAfterPt": 6,
+      "firstLineIndentCm": 1.0,
+      "bodyAlignment": "both",
+      "enforceCompatibilityCheck": true
+    }
+  },
+  {
+    "templateId": "adm-phieu-de-xuat",
+    "name": "Phiếu đề xuất hành chính",
+    "group": "administrative",
+    "docType": "phieuDeXuat",
+    "scope": "adminNd30",
+    "description": "Mẫu Phiếu đề xuất giải quyết công việc với bảng kê hạng mục đề xuất và khối ký duyệt 3 cấp (Người đề xuất / Thẩm định / Phê duyệt).",
+    "isSystem": true,
+    "isDefaultForDocType": true,
+    "version": "1.0.0",
+    "status": "active",
+    "sourceDocxAssetId": null,
+    "detectedPlaceholders": ["ten_co_quan", "co_quan_chu_quan", "so_van_ban", "dia_danh", "ngay_thang", "trich_yeu", "nguoi_nhan", "chuc_vu", "nguoi_ky"],
+    "updatedAt": "2026-11-19",
+    "headerConfig": {
+      "enabled": true,
+      "baseAdminDocType": "vanBanNoiBo",
+      "customDocTypeLabel": "PHIẾU ĐỀ XUẤT",
+      "symbolPrefix": "PĐX",
+      "useLeftCellSubject": false,
+      "showGoverningOrg": false,
+      "showIssuingOrg": true,
+      "showNationalHeader": true,
+      "respectOrgEnterpriseLayout": false,
+      "showNumberSymbol": true,
+      "showLocationDate": true,
+      "showDocTypeAndSubject": true,
+      "includeControlBox": false
+    },
+    "contentStructure": [
+      {
+        "sectionId": "pdx-kinh-gui",
+        "title": "",
+        "kind": "recipientSalutation",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "center",
+        "headingBold": false,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": ["Kính gửi: {{nguoi_nhan}}"],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "pdx-thong-tin",
+        "title": "1. Thông tin và lý do đề xuất",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "- Bộ phận / Người đề xuất: [Nhập tên bộ phận hoặc cá nhân đề xuất];",
+          "- Nội dung đề xuất: {{trich_yeu}};",
+          "- Lý do và sự cần thiết: [Hướng dẫn nhập: Mô tả nhu cầu thực tế dẫn đến đề xuất.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "pdx-bang-hang-muc",
+        "title": "Bảng kê chi tiết hạng mục đề xuất",
+        "kind": "tableBlock",
+        "required": false,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [],
+        "inlineTable": {
+          "caption": "Bảng chi tiết nhu cầu đề xuất",
+          "columns": [
+            { "header": "STT", "widthPct": 10, "align": "center" },
+            { "header": "Hạng mục đề xuất", "widthPct": 42, "align": "left" },
+            { "header": "Số lượng / Quy cách", "widthPct": 24, "align": "center" },
+            { "header": "Thời gian cần", "widthPct": 24, "align": "center" }
+          ],
+          "sampleRows": [
+            ["1", "[Nhập hạng mục 1]", "[Số lượng]", "[Thời gian]"]
+          ]
+        }
+      },
+      {
+        "sectionId": "pdx-tham-dinh",
+        "title": "2. Ý kiến tham mưu thẩm định",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "[Để trống hoặc ghi ý kiến chuyên môn của bộ phận thẩm định trước khi trình ký duyệt.]"
+        ],
+        "inlineTable": null
+      }
+    ],
+    "footerConfig": {
+      "showRecipientList": false,
+      "recipientHeaderLabel": "Nơi nhận:",
+      "defaultRecipients": [],
+      "includePageNumbers": false,
+      "pageNumberPosition": "topCenter",
+      "footerNoteTemplate": ""
+    },
+    "signatureConfig": {
+      "layout": "tripleApproval",
+      "authorityMode": "",
+      "authorityPrefixLabel": "",
+      "signerTitlePlaceholder": "{{chuc_vu}}",
+      "signerNamePlaceholder": "{{nguoi_ky}}",
+      "leftColumnTitle": "NGƯỜI ĐỀ XUẤT",
+      "middleColumnTitle": "Ý KIẾN THẨM ĐỊNH",
+      "blankLinesForSeal": 3
+    },
+    "tableConfig": {
+      "defaultFontName": "Times New Roman",
+      "defaultFontSizePt": 13,
+      "headerBold": true,
+      "repeatHeaderRow": true,
+      "preventRowSplit": true,
+      "borderStyle": "single",
+      "borderSizeEighthsPt": 4,
+      "cellPaddingTopBottomTwips": 60,
+      "cellPaddingLeftRightTwips": 108,
+      "fitToPrintableWidth": true
+    },
+    "formatRules": {
+      "paperSize": "a4",
+      "marginTopMm": 20,
+      "marginBottomMm": 20,
+      "marginLeftMm": 30,
+      "marginRightMm": 15,
+      "fontFamily": "Times New Roman",
+      "bodyFontSizePt": 14,
+      "lineSpacingMultiple": 1.15,
+      "spaceBeforePt": 0,
+      "spaceAfterPt": 6,
+      "firstLineIndentCm": 1.0,
+      "bodyAlignment": "both",
+      "enforceCompatibilityCheck": true
+    }
+  },
+  {
+    "templateId": "adm-chuong-trinh-cong-tac",
+    "name": "Chương trình công tác (NĐ 30/2020/NĐ-CP)",
+    "group": "administrative",
+    "docType": "chuongTrinhCongTac",
+    "scope": "adminNd30",
+    "description": "Mẫu Chương trình công tác (ký hiệu CTr) với định hướng trọng tâm, Bảng lịch trình nhiệm vụ công tác bắt buộc và chế độ báo cáo.",
+    "isSystem": true,
+    "isDefaultForDocType": true,
+    "version": "1.0.0",
+    "status": "active",
+    "sourceDocxAssetId": null,
+    "detectedPlaceholders": ["ten_co_quan", "co_quan_chu_quan", "so_van_ban", "dia_danh", "ngay_thang", "trich_yeu", "nguoi_nhan", "chuc_vu", "nguoi_ky"],
+    "updatedAt": "2026-11-19",
+    "headerConfig": {
+      "enabled": true,
+      "baseAdminDocType": "keHoach",
+      "customDocTypeLabel": "CHƯƠNG TRÌNH",
+      "symbolPrefix": "CTr",
+      "useLeftCellSubject": false,
+      "showGoverningOrg": true,
+      "showIssuingOrg": true,
+      "showNationalHeader": true,
+      "respectOrgEnterpriseLayout": false,
+      "showNumberSymbol": true,
+      "showLocationDate": true,
+      "showDocTypeAndSubject": true,
+      "includeControlBox": false
+    },
+    "contentStructure": [
+      {
+        "sectionId": "ctr-muc-1",
+        "title": "I. NHIỆM VỤ TRỌNG TÂM TRONG KỲ",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": true,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Xác định các nhóm nhiệm vụ trọng tâm thuộc {{trich_yeu}} của {{ten_co_quan}}.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "ctr-bang-lich-trinh",
+        "title": "II. LỊCH TRÌNH CÁC ĐẦU VIỆC CÔNG TÁC",
+        "kind": "tableBlock",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": true,
+        "bodyParagraphs": [],
+        "inlineTable": {
+          "caption": "Bảng chương trình công tác theo thời gian",
+          "columns": [
+            { "header": "Tháng / Tuần", "widthPct": 16, "align": "center" },
+            { "header": "Nội dung công việc / Hội nghị", "widthPct": 40, "align": "left" },
+            { "header": "Đơn vị chủ trì", "widthPct": 22, "align": "left" },
+            { "header": "Sản phẩm đầu ra", "widthPct": 22, "align": "left" }
+          ],
+          "sampleRows": [
+            ["[Thời gian 1]", "[Nhập nội dung công việc]", "[Đơn vị chủ trì]", "[Báo cáo / Văn bản]"],
+            ["[Thời gian 2]", "[Nhập nội dung công việc]", "[Đơn vị chủ trì]", "[Báo cáo / Văn bản]"]
+          ]
+        }
+      },
+      {
+        "sectionId": "ctr-muc-3",
+        "title": "III. TỔ CHỨC THỰC HIỆN VÀ CHẾ ĐỘ BÁO CÁO",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": true,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Quy định trách nhiệm điều phối lịch trình và báo cáo bổ sung/điều chỉnh phát sinh tới {{nguoi_nhan}}.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "ctr-ghi-chu",
+        "title": "Ghi chú điều chỉnh lịch công tác (tùy chọn)",
+        "kind": "paragraphBlock",
+        "required": false,
+        "enabledByDefault": false,
+        "headingAlignment": "left",
+        "headingBold": false,
+        "headingItalic": true,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập (tùy chọn): Quy trình thông báo thay đổi thời gian hoặc nội dung công tác đột xuất.]"
+        ],
+        "inlineTable": null
+      }
+    ],
+    "footerConfig": {
+      "showRecipientList": true,
+      "recipientHeaderLabel": "Nơi nhận:",
+      "defaultRecipients": ["- {{nguoi_nhan}};", "- Lưu: VT."],
+      "includePageNumbers": true,
+      "pageNumberPosition": "topCenter",
+      "footerNoteTemplate": ""
+    },
+    "signatureConfig": {
+      "layout": "singleRight",
+      "authorityMode": "",
+      "authorityPrefixLabel": "",
+      "signerTitlePlaceholder": "{{chuc_vu}}",
+      "signerNamePlaceholder": "{{nguoi_ky}}",
+      "leftColumnTitle": "",
+      "middleColumnTitle": "",
+      "blankLinesForSeal": 3
+    },
+    "tableConfig": {
+      "defaultFontName": "Times New Roman",
+      "defaultFontSizePt": 13,
+      "headerBold": true,
+      "repeatHeaderRow": true,
+      "preventRowSplit": true,
+      "borderStyle": "single",
+      "borderSizeEighthsPt": 4,
+      "cellPaddingTopBottomTwips": 60,
+      "cellPaddingLeftRightTwips": 108,
+      "fitToPrintableWidth": true
+    },
+    "formatRules": {
+      "paperSize": "a4",
+      "marginTopMm": 20,
+      "marginBottomMm": 20,
+      "marginLeftMm": 30,
+      "marginRightMm": 15,
+      "fontFamily": "Times New Roman",
+      "bodyFontSizePt": 14,
+      "lineSpacingMultiple": 1.15,
+      "spaceBeforePt": 0,
+      "spaceAfterPt": 6,
+      "firstLineIndentCm": 1.0,
+      "bodyAlignment": "both",
+      "enforceCompatibilityCheck": true
+    }
+  },
+  {
+    "templateId": "ent-to-trinh-noi-bo",
+    "name": "Tờ trình nội bộ doanh nghiệp",
+    "group": "enterprise",
+    "docType": "toTrinhNoiBo",
+    "scope": "enterpriseInternal",
+    "description": "Mẫu Tờ trình nội bộ trình Ban Giám đốc / Lãnh đạo doanh nghiệp với khối ký 3 cột và tự động theo tùy chọn Quốc hiệu của Hồ sơ doanh nghiệp.",
+    "isSystem": true,
+    "isDefaultForDocType": true,
+    "version": "1.0.0",
+    "status": "active",
+    "sourceDocxAssetId": null,
+    "detectedPlaceholders": ["ten_co_quan", "co_quan_chu_quan", "so_van_ban", "dia_danh", "ngay_thang", "trich_yeu", "nguoi_nhan", "chuc_vu", "nguoi_ky"],
+    "updatedAt": "2026-11-19",
+    "headerConfig": {
+      "enabled": true,
+      "baseAdminDocType": "toTrinh",
+      "customDocTypeLabel": "TỜ TRÌNH NỘI BỘ",
+      "symbolPrefix": "TTr",
+      "useLeftCellSubject": false,
+      "showGoverningOrg": true,
+      "showIssuingOrg": true,
+      "showNationalHeader": true,
+      "respectOrgEnterpriseLayout": true,
+      "showNumberSymbol": true,
+      "showLocationDate": true,
+      "showDocTypeAndSubject": true,
+      "includeControlBox": false
+    },
+    "contentStructure": [
+      {
+        "sectionId": "ent-ttr-kinh-gui",
+        "title": "",
+        "kind": "recipientSalutation",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "center",
+        "headingBold": false,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": ["Kính gửi: {{nguoi_nhan}}"],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "ent-ttr-muc-1",
+        "title": "1. Bối cảnh và mục tiêu đề xuất",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Mô tả nhu cầu vận hành/kinh doanh tại {{ten_co_quan}} dẫn đến tờ trình {{trich_yeu}}.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "ent-ttr-muc-2",
+        "title": "2. Phương án thực hiện và dự trù nguồn lực",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Trình bày phương án tối ưu, rủi ro dự phòng và hiệu quả dự kiến.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "ent-ttr-bang-ngan-sach",
+        "title": "Bảng dự toán nguồn lực (tùy chọn)",
+        "kind": "tableBlock",
+        "required": false,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [],
+        "inlineTable": {
+          "caption": "Bảng so sánh phương án / dự toán chi phí",
+          "columns": [
+            { "header": "Hạng mục", "widthPct": 38, "align": "left" },
+            { "header": "Phương án đề xuất", "widthPct": 32, "align": "left" },
+            { "header": "Ước tính chi phí", "widthPct": 30, "align": "right" }
+          ],
+          "sampleRows": [
+            ["[Nhập hạng mục 1]", "[Mô tả phương án]", "[Số tiền]"]
+          ]
+        }
+      },
+      {
+        "sectionId": "ent-ttr-muc-3",
+        "title": "3. Kiến nghị phê duyệt",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Kính trình {{nguoi_nhan}} xem xét, phê duyệt phương án để đơn vị triển khai đúng tiến độ.]"
+        ],
+        "inlineTable": null
+      }
+    ],
+    "footerConfig": {
+      "showRecipientList": true,
+      "recipientHeaderLabel": "Nơi nhận:",
+      "defaultRecipients": ["- {{nguoi_nhan}};", "- Lưu: Hành chính."],
+      "includePageNumbers": true,
+      "pageNumberPosition": "topCenter",
+      "footerNoteTemplate": ""
+    },
+    "signatureConfig": {
+      "layout": "tripleApproval",
+      "authorityMode": "",
+      "authorityPrefixLabel": "",
+      "signerTitlePlaceholder": "{{chuc_vu}}",
+      "signerNamePlaceholder": "{{nguoi_ky}}",
+      "leftColumnTitle": "BỘ PHẬN ĐỀ XUẤT",
+      "middleColumnTitle": "KIỂM SOÁT / TÀI CHÍNH",
+      "blankLinesForSeal": 3
+    },
+    "tableConfig": {
+      "defaultFontName": "Times New Roman",
+      "defaultFontSizePt": 13,
+      "headerBold": true,
+      "repeatHeaderRow": true,
+      "preventRowSplit": true,
+      "borderStyle": "single",
+      "borderSizeEighthsPt": 4,
+      "cellPaddingTopBottomTwips": 60,
+      "cellPaddingLeftRightTwips": 108,
+      "fitToPrintableWidth": true
+    },
+    "formatRules": {
+      "paperSize": "a4",
+      "marginTopMm": 20,
+      "marginBottomMm": 20,
+      "marginLeftMm": 30,
+      "marginRightMm": 15,
+      "fontFamily": "Times New Roman",
+      "bodyFontSizePt": 14,
+      "lineSpacingMultiple": 1.15,
+      "spaceBeforePt": 0,
+      "spaceAfterPt": 6,
+      "firstLineIndentCm": 1.0,
+      "bodyAlignment": "both",
+      "enforceCompatibilityCheck": true
+    }
+  },
+  {
+    "templateId": "ent-bao-cao-noi-bo",
+    "name": "Báo cáo nội bộ doanh nghiệp",
+    "group": "enterprise",
+    "docType": "baoCaoNoiBo",
+    "scope": "enterpriseInternal",
+    "description": "Mẫu Báo cáo nội bộ doanh nghiệp tích hợp bảng theo dõi KPI định kỳ và đề xuất giải pháp cải thiện.",
+    "isSystem": true,
+    "isDefaultForDocType": true,
+    "version": "1.0.0",
+    "status": "active",
+    "sourceDocxAssetId": null,
+    "detectedPlaceholders": ["ten_co_quan", "co_quan_chu_quan", "so_van_ban", "dia_danh", "ngay_thang", "trich_yeu", "nguoi_nhan", "chuc_vu", "nguoi_ky"],
+    "updatedAt": "2026-11-19",
+    "headerConfig": {
+      "enabled": true,
+      "baseAdminDocType": "baoCao",
+      "customDocTypeLabel": "BÁO CÁO NỘI BỘ",
+      "symbolPrefix": "BC",
+      "useLeftCellSubject": false,
+      "showGoverningOrg": true,
+      "showIssuingOrg": true,
+      "showNationalHeader": true,
+      "respectOrgEnterpriseLayout": true,
+      "showNumberSymbol": true,
+      "showLocationDate": true,
+      "showDocTypeAndSubject": true,
+      "includeControlBox": false
+    },
+    "contentStructure": [
+      {
+        "sectionId": "ent-bc-kinh-gui",
+        "title": "",
+        "kind": "recipientSalutation",
+        "required": false,
+        "enabledByDefault": true,
+        "headingAlignment": "center",
+        "headingBold": false,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": ["Kính gửi: {{nguoi_nhan}}"],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "ent-bc-muc-1",
+        "title": "I. TÓM TẮT KẾT QUẢ HOẠT ĐỘNG",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": true,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Tổng hợp kết quả hoạt động của phòng/ban thuộc {{ten_co_quan}} về {{trich_yeu}}.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "ent-bc-bang-kpi",
+        "title": "Bảng chỉ tiêu kết quả (KPI)",
+        "kind": "tableBlock",
+        "required": false,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [],
+        "inlineTable": {
+          "caption": "Bảng thống kê KPI thực hiện trong kỳ",
+          "columns": [
+            { "header": "Chỉ tiêu KPI", "widthPct": 38, "align": "left" },
+            { "header": "Mục tiêu", "widthPct": 20, "align": "right" },
+            { "header": "Đạt được", "widthPct": 20, "align": "right" },
+            { "header": "Tỷ lệ / Đánh giá", "widthPct": 22, "align": "center" }
+          ],
+          "sampleRows": [
+            ["[Nhập KPI 1]", "[Mục tiêu]", "[Thực tế]", "[% Hoàn thành]"]
+          ]
+        }
+      },
+      {
+        "sectionId": "ent-bc-muc-2",
+        "title": "II. VƯỚNG MẮC VÀ GIẢI PHÁP KHẮC PHỤC",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": true,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Phân tích nguyên nhân chênh lệch mục tiêu (nếu có) và đề xuất hành động khắc phục.]"
+        ],
+        "inlineTable": null
+      }
+    ],
+    "footerConfig": {
+      "showRecipientList": true,
+      "recipientHeaderLabel": "Nơi nhận:",
+      "defaultRecipients": ["- {{nguoi_nhan}};", "- Lưu: Phòng ban."],
+      "includePageNumbers": true,
+      "pageNumberPosition": "topCenter",
+      "footerNoteTemplate": ""
+    },
+    "signatureConfig": {
+      "layout": "singleRight",
+      "authorityMode": "",
+      "authorityPrefixLabel": "",
+      "signerTitlePlaceholder": "{{chuc_vu}}",
+      "signerNamePlaceholder": "{{nguoi_ky}}",
+      "leftColumnTitle": "",
+      "middleColumnTitle": "",
+      "blankLinesForSeal": 3
+    },
+    "tableConfig": {
+      "defaultFontName": "Times New Roman",
+      "defaultFontSizePt": 13,
+      "headerBold": true,
+      "repeatHeaderRow": true,
+      "preventRowSplit": true,
+      "borderStyle": "single",
+      "borderSizeEighthsPt": 4,
+      "cellPaddingTopBottomTwips": 60,
+      "cellPaddingLeftRightTwips": 108,
+      "fitToPrintableWidth": true
+    },
+    "formatRules": {
+      "paperSize": "a4",
+      "marginTopMm": 20,
+      "marginBottomMm": 20,
+      "marginLeftMm": 30,
+      "marginRightMm": 15,
+      "fontFamily": "Times New Roman",
+      "bodyFontSizePt": 14,
+      "lineSpacingMultiple": 1.15,
+      "spaceBeforePt": 0,
+      "spaceAfterPt": 6,
+      "firstLineIndentCm": 1.0,
+      "bodyAlignment": "both",
+      "enforceCompatibilityCheck": true
+    }
+  },
+  {
+    "templateId": "ent-quyet-dinh-noi-bo",
+    "name": "Quyết định nội bộ doanh nghiệp",
+    "group": "enterprise",
+    "docType": "quyetDinhNoiBo",
+    "scope": "enterpriseInternal",
+    "description": "Mẫu Quyết định điều hành/bổ nhiệm/ban hành quy định nội bộ doanh nghiệp theo Điều lệ công ty.",
+    "isSystem": true,
+    "isDefaultForDocType": true,
+    "version": "1.0.0",
+    "status": "active",
+    "sourceDocxAssetId": null,
+    "detectedPlaceholders": ["ten_co_quan", "co_quan_chu_quan", "so_van_ban", "dia_danh", "ngay_thang", "trich_yeu", "nguoi_nhan", "chuc_vu", "nguoi_ky"],
+    "updatedAt": "2026-11-19",
+    "headerConfig": {
+      "enabled": true,
+      "baseAdminDocType": "quyetDinh",
+      "customDocTypeLabel": "QUYẾT ĐỊNH",
+      "symbolPrefix": "QĐ",
+      "useLeftCellSubject": false,
+      "showGoverningOrg": true,
+      "showIssuingOrg": true,
+      "showNationalHeader": true,
+      "respectOrgEnterpriseLayout": true,
+      "showNumberSymbol": true,
+      "showLocationDate": true,
+      "showDocTypeAndSubject": true,
+      "includeControlBox": false
+    },
+    "contentStructure": [
+      {
+        "sectionId": "ent-qd-tham-quyen",
+        "title": "",
+        "kind": "authorityHeading",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "center",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": true,
+        "bodyParagraphs": ["{{chuc_vu}} {{ten_co_quan}}"],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "ent-qd-can-cu",
+        "title": "",
+        "kind": "preambleBasis",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "both",
+        "headingBold": false,
+        "headingItalic": true,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "Căn cứ Điều lệ tổ chức và hoạt động của {{ten_co_quan}};",
+          "Căn cứ Nghị quyết / Quy chế nội bộ hoặc văn bản phê duyệt liên quan do doanh nghiệp ban hành;",
+          "Xét đề nghị của [Nhập tên bộ phận nhân sự/chuyên môn trình duyệt]."
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "ent-qd-tu-khoa",
+        "title": "QUYẾT ĐỊNH:",
+        "kind": "decisionKeyword",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "center",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": true,
+        "bodyParagraphs": [],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "ent-qd-dieu-khoan",
+        "title": "",
+        "kind": "articleClause",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "both",
+        "headingBold": false,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "Điều 1. [Hướng dẫn nhập: Nội dung quyết định chính về {{trich_yeu}}.]",
+          "Điều 2. [Hướng dẫn nhập: Hiệu lực áp dụng và quyền lợi/trách nhiệm kèm theo.]",
+          "Điều 3. {{nguoi_nhan}} và các phòng ban, cá nhân liên quan căn cứ Quyết định thi hành./."
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "ent-qd-phu-luc",
+        "title": "Danh sách / Phụ lục đính kèm (tùy chọn)",
+        "kind": "tableBlock",
+        "required": false,
+        "enabledByDefault": false,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [],
+        "inlineTable": {
+          "caption": "Phụ lục kèm theo Quyết định nội bộ",
+          "columns": [
+            { "header": "STT", "widthPct": 10, "align": "center" },
+            { "header": "Họ và tên / Hạng mục", "widthPct": 45, "align": "left" },
+            { "header": "Phòng ban", "widthPct": 25, "align": "left" },
+            { "header": "Nội dung áp dụng", "widthPct": 20, "align": "left" }
+          ],
+          "sampleRows": [
+            ["1", "[Nhập đối tượng]", "[Phòng ban]", "[Nội dung]"]
+          ]
+        }
+      }
+    ],
+    "footerConfig": {
+      "showRecipientList": true,
+      "recipientHeaderLabel": "Nơi nhận:",
+      "defaultRecipients": ["- Như Điều 3;", "- {{nguoi_nhan}};", "- Lưu: HCNS."],
+      "includePageNumbers": true,
+      "pageNumberPosition": "topCenter",
+      "footerNoteTemplate": ""
+    },
+    "signatureConfig": {
+      "layout": "singleRight",
+      "authorityMode": "",
+      "authorityPrefixLabel": "",
+      "signerTitlePlaceholder": "{{chuc_vu}}",
+      "signerNamePlaceholder": "{{nguoi_ky}}",
+      "leftColumnTitle": "",
+      "middleColumnTitle": "",
+      "blankLinesForSeal": 3
+    },
+    "tableConfig": {
+      "defaultFontName": "Times New Roman",
+      "defaultFontSizePt": 13,
+      "headerBold": true,
+      "repeatHeaderRow": true,
+      "preventRowSplit": true,
+      "borderStyle": "single",
+      "borderSizeEighthsPt": 4,
+      "cellPaddingTopBottomTwips": 60,
+      "cellPaddingLeftRightTwips": 108,
+      "fitToPrintableWidth": true
+    },
+    "formatRules": {
+      "paperSize": "a4",
+      "marginTopMm": 20,
+      "marginBottomMm": 20,
+      "marginLeftMm": 30,
+      "marginRightMm": 15,
+      "fontFamily": "Times New Roman",
+      "bodyFontSizePt": 14,
+      "lineSpacingMultiple": 1.15,
+      "spaceBeforePt": 0,
+      "spaceAfterPt": 6,
+      "firstLineIndentCm": 1.0,
+      "bodyAlignment": "both",
+      "enforceCompatibilityCheck": true
+    }
+  },
+  {
+    "templateId": "ent-thong-bao-noi-bo",
+    "name": "Thông báo nội bộ doanh nghiệp",
+    "group": "enterprise",
+    "docType": "thongBaoNoiBo",
+    "scope": "enterpriseInternal",
+    "description": "Mẫu Thông báo nội bộ toàn công ty hoặc phòng ban về chính sách, lịch làm việc, sự kiện nội bộ.",
+    "isSystem": true,
+    "isDefaultForDocType": true,
+    "version": "1.0.0",
+    "status": "active",
+    "sourceDocxAssetId": null,
+    "detectedPlaceholders": ["ten_co_quan", "co_quan_chu_quan", "so_van_ban", "dia_danh", "ngay_thang", "trich_yeu", "nguoi_nhan", "chuc_vu", "nguoi_ky"],
+    "updatedAt": "2026-11-19",
+    "headerConfig": {
+      "enabled": true,
+      "baseAdminDocType": "thongBao",
+      "customDocTypeLabel": "THÔNG BÁO NỘI BỘ",
+      "symbolPrefix": "TB",
+      "useLeftCellSubject": false,
+      "showGoverningOrg": true,
+      "showIssuingOrg": true,
+      "showNationalHeader": true,
+      "respectOrgEnterpriseLayout": true,
+      "showNumberSymbol": true,
+      "showLocationDate": true,
+      "showDocTypeAndSubject": true,
+      "includeControlBox": false
+    },
+    "contentStructure": [
+      {
+        "sectionId": "ent-tb-kinh-gui",
+        "title": "",
+        "kind": "recipientSalutation",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "center",
+        "headingBold": false,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": ["Kính gửi: {{nguoi_nhan}}"],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "ent-tb-noi-dung",
+        "title": "1. Nội dung thông báo",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "{{ten_co_quan}} thông báo về {{trich_yeu}}:",
+          "[Hướng dẫn nhập: Trình bày cụ thể các điểm lưu ý, quy định áp dụng hoặc lịch trình thay đổi.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "ent-tb-hieu-luc",
+        "title": "2. Thời gian áp dụng & liên hệ hỗ trợ",
+        "kind": "headingSection",
+        "required": false,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Ghi thời gian hiệu lực và đầu mối hỗ trợ (Phòng Hành chính / Nhân sự / IT).]"
+        ],
+        "inlineTable": null
+      }
+    ],
+    "footerConfig": {
+      "showRecipientList": true,
+      "recipientHeaderLabel": "Nơi nhận:",
+      "defaultRecipients": ["- {{nguoi_nhan}};", "- Lưu: Hành chính."],
+      "includePageNumbers": false,
+      "pageNumberPosition": "topCenter",
+      "footerNoteTemplate": ""
+    },
+    "signatureConfig": {
+      "layout": "singleRight",
+      "authorityMode": "",
+      "authorityPrefixLabel": "",
+      "signerTitlePlaceholder": "{{chuc_vu}}",
+      "signerNamePlaceholder": "{{nguoi_ky}}",
+      "leftColumnTitle": "",
+      "middleColumnTitle": "",
+      "blankLinesForSeal": 3
+    },
+    "tableConfig": {
+      "defaultFontName": "Times New Roman",
+      "defaultFontSizePt": 13,
+      "headerBold": true,
+      "repeatHeaderRow": true,
+      "preventRowSplit": true,
+      "borderStyle": "single",
+      "borderSizeEighthsPt": 4,
+      "cellPaddingTopBottomTwips": 60,
+      "cellPaddingLeftRightTwips": 108,
+      "fitToPrintableWidth": true
+    },
+    "formatRules": {
+      "paperSize": "a4",
+      "marginTopMm": 20,
+      "marginBottomMm": 20,
+      "marginLeftMm": 30,
+      "marginRightMm": 15,
+      "fontFamily": "Times New Roman",
+      "bodyFontSizePt": 14,
+      "lineSpacingMultiple": 1.15,
+      "spaceBeforePt": 0,
+      "spaceAfterPt": 6,
+      "firstLineIndentCm": 1.0,
+      "bodyAlignment": "both",
+      "enforceCompatibilityCheck": true
+    }
+  },
+  {
+    "templateId": "ent-bien-ban-hop",
+    "name": "Biên bản họp doanh nghiệp",
+    "group": "enterprise",
+    "docType": "bienBanHop",
+    "scope": "enterpriseInternal",
+    "description": "Mẫu Biên bản họp doanh nghiệp gồm thành phần, nội dung trao đổi, bảng Action Items bắt buộc và chữ ký Thư ký / Chủ trì.",
+    "isSystem": true,
+    "isDefaultForDocType": true,
+    "version": "1.0.0",
+    "status": "active",
+    "sourceDocxAssetId": null,
+    "detectedPlaceholders": ["ten_co_quan", "co_quan_chu_quan", "so_van_ban", "dia_danh", "ngay_thang", "trich_yeu", "nguoi_nhan", "chuc_vu", "nguoi_ky"],
+    "updatedAt": "2026-11-19",
+    "headerConfig": {
+      "enabled": true,
+      "baseAdminDocType": "bienBan",
+      "customDocTypeLabel": "BIÊN BẢN HỌP",
+      "symbolPrefix": "BBH",
+      "useLeftCellSubject": false,
+      "showGoverningOrg": true,
+      "showIssuingOrg": true,
+      "showNationalHeader": true,
+      "respectOrgEnterpriseLayout": true,
+      "showNumberSymbol": true,
+      "showLocationDate": false,
+      "showDocTypeAndSubject": true,
+      "includeControlBox": false
+    },
+    "contentStructure": [
+      {
+        "sectionId": "ent-bbh-thoi-gian",
+        "title": "",
+        "kind": "metadataBlock",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "both",
+        "headingBold": false,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "Chủ đề cuộc họp: {{trich_yeu}}",
+          "Thời gian: [Nhập giờ] - [Nhập giờ], {{ngay_thang}} | Địa điểm: Tại {{dia_danh}} - [Phòng họp / Online]."
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "ent-bbh-thanh-phan",
+        "title": "1. Thành phần tham dự",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "- Chủ trì cuộc họp: {{nguoi_ky}} ({{chuc_vu}});",
+          "- Thư ký cuộc họp: [Nhập tên thư ký];",
+          "- Thành viên tham dự: {{nguoi_nhan}}."
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "ent-bbh-noi-dung",
+        "title": "2. Nội dung thảo luận chính",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Tóm tắt các ý kiến phát biểu, thống nhất hoặc các vấn đề còn mở cần theo dõi tiếp.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "ent-bbh-action-items",
+        "title": "3. Bảng đầu việc hành động (Action Items)",
+        "kind": "tableBlock",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [],
+        "inlineTable": {
+          "caption": "Bảng phân công việc sau cuộc họp",
+          "columns": [
+            { "header": "STT", "widthPct": 8, "align": "center" },
+            { "header": "Đầu việc cần thực hiện", "widthPct": 44, "align": "left" },
+            { "header": "Người phụ trách", "widthPct": 24, "align": "left" },
+            { "header": "Hạn hoàn thành", "widthPct": 24, "align": "center" }
+          ],
+          "sampleRows": [
+            ["1", "[Nhập đầu việc 1]", "[Người phụ trách]", "[Ngày/Tháng]"],
+            ["2", "[Nhập đầu việc 2]", "[Người phụ trách]", "[Ngày/Tháng]"]
+          ]
+        }
+      }
+    ],
+    "footerConfig": {
+      "showRecipientList": false,
+      "recipientHeaderLabel": "Nơi nhận:",
+      "defaultRecipients": [],
+      "includePageNumbers": true,
+      "pageNumberPosition": "topCenter",
+      "footerNoteTemplate": ""
+    },
+    "signatureConfig": {
+      "layout": "dualSecretaryChair",
+      "authorityMode": "",
+      "authorityPrefixLabel": "",
+      "signerTitlePlaceholder": "{{chuc_vu}}",
+      "signerNamePlaceholder": "{{nguoi_ky}}",
+      "leftColumnTitle": "THƯ KÝ CUỘC HỌP",
+      "middleColumnTitle": "",
+      "blankLinesForSeal": 3
+    },
+    "tableConfig": {
+      "defaultFontName": "Times New Roman",
+      "defaultFontSizePt": 13,
+      "headerBold": true,
+      "repeatHeaderRow": true,
+      "preventRowSplit": true,
+      "borderStyle": "single",
+      "borderSizeEighthsPt": 4,
+      "cellPaddingTopBottomTwips": 60,
+      "cellPaddingLeftRightTwips": 108,
+      "fitToPrintableWidth": true
+    },
+    "formatRules": {
+      "paperSize": "a4",
+      "marginTopMm": 20,
+      "marginBottomMm": 20,
+      "marginLeftMm": 30,
+      "marginRightMm": 15,
+      "fontFamily": "Times New Roman",
+      "bodyFontSizePt": 14,
+      "lineSpacingMultiple": 1.15,
+      "spaceBeforePt": 0,
+      "spaceAfterPt": 6,
+      "firstLineIndentCm": 1.0,
+      "bodyAlignment": "both",
+      "enforceCompatibilityCheck": true
+    }
+  },
+  {
+    "templateId": "ent-phieu-de-xuat",
+    "name": "Phiếu đề xuất doanh nghiệp",
+    "group": "enterprise",
+    "docType": "phieuDeXuatDoanhNghiep",
+    "scope": "enterpriseInternal",
+    "description": "Mẫu Phiếu đề xuất mua sắm / ngân sách / công việc doanh nghiệp với bảng kê chi phí bắt buộc và ký duyệt 3 cấp.",
+    "isSystem": true,
+    "isDefaultForDocType": true,
+    "version": "1.0.0",
+    "status": "active",
+    "sourceDocxAssetId": null,
+    "detectedPlaceholders": ["ten_co_quan", "co_quan_chu_quan", "so_van_ban", "dia_danh", "ngay_thang", "trich_yeu", "nguoi_nhan", "chuc_vu", "nguoi_ky"],
+    "updatedAt": "2026-11-19",
+    "headerConfig": {
+      "enabled": true,
+      "baseAdminDocType": "vanBanNoiBo",
+      "customDocTypeLabel": "PHIẾU ĐỀ XUẤT",
+      "symbolPrefix": "PDX",
+      "useLeftCellSubject": false,
+      "showGoverningOrg": true,
+      "showIssuingOrg": true,
+      "showNationalHeader": true,
+      "respectOrgEnterpriseLayout": true,
+      "showNumberSymbol": true,
+      "showLocationDate": true,
+      "showDocTypeAndSubject": true,
+      "includeControlBox": false
+    },
+    "contentStructure": [
+      {
+        "sectionId": "ent-pdx-kinh-gui",
+        "title": "",
+        "kind": "recipientSalutation",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "center",
+        "headingBold": false,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": ["Kính gửi: {{nguoi_nhan}}"],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "ent-pdx-noi-dung",
+        "title": "1. Lý do và phạm vi đề xuất",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "- Bộ phận đề xuất: [Nhập tên bộ phận thuộc {{ten_co_quan}}];",
+          "- Nội dung chính: {{trich_yeu}}."
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "ent-pdx-bang-chi-phi",
+        "title": "2. Bảng kê hạng mục và dự trù kinh phí",
+        "kind": "tableBlock",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [],
+        "inlineTable": {
+          "caption": "Bảng chi tiết hạng mục đề xuất",
+          "columns": [
+            { "header": "TT", "widthPct": 8, "align": "center" },
+            { "header": "Tên hạng mục / Dịch vụ", "widthPct": 40, "align": "left" },
+            { "header": "SL", "widthPct": 12, "align": "center" },
+            { "header": "Đơn giá", "widthPct": 20, "align": "right" },
+            { "header": "Thành tiền", "widthPct": 20, "align": "right" }
+          ],
+          "sampleRows": [
+            ["1", "[Nhập hạng mục 1]", "[SL]", "[Đơn giá]", "[Thành tiền]"]
+          ]
+        }
+      },
+      {
+        "sectionId": "ent-pdx-ghi-chu",
+        "title": "3. Tài liệu đính kèm (tùy chọn)",
+        "kind": "paragraphBlock",
+        "required": false,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập (tùy chọn): Liệt kê báo giá, hợp đồng dự thảo hoặc tài liệu đối chiếu đính kèm.]"
+        ],
+        "inlineTable": null
+      }
+    ],
+    "footerConfig": {
+      "showRecipientList": false,
+      "recipientHeaderLabel": "Nơi nhận:",
+      "defaultRecipients": [],
+      "includePageNumbers": false,
+      "pageNumberPosition": "topCenter",
+      "footerNoteTemplate": ""
+    },
+    "signatureConfig": {
+      "layout": "tripleApproval",
+      "authorityMode": "",
+      "authorityPrefixLabel": "",
+      "signerTitlePlaceholder": "{{chuc_vu}}",
+      "signerNamePlaceholder": "{{nguoi_ky}}",
+      "leftColumnTitle": "NGƯỜI ĐỀ XUẤT",
+      "middleColumnTitle": "TRƯỞNG BỘ PHẬN / TCKT",
+      "blankLinesForSeal": 3
+    },
+    "tableConfig": {
+      "defaultFontName": "Times New Roman",
+      "defaultFontSizePt": 13,
+      "headerBold": true,
+      "repeatHeaderRow": true,
+      "preventRowSplit": true,
+      "borderStyle": "single",
+      "borderSizeEighthsPt": 4,
+      "cellPaddingTopBottomTwips": 60,
+      "cellPaddingLeftRightTwips": 108,
+      "fitToPrintableWidth": true
+    },
+    "formatRules": {
+      "paperSize": "a4",
+      "marginTopMm": 20,
+      "marginBottomMm": 20,
+      "marginLeftMm": 30,
+      "marginRightMm": 15,
+      "fontFamily": "Times New Roman",
+      "bodyFontSizePt": 14,
+      "lineSpacingMultiple": 1.15,
+      "spaceBeforePt": 0,
+      "spaceAfterPt": 6,
+      "firstLineIndentCm": 1.0,
+      "bodyAlignment": "both",
+      "enforceCompatibilityCheck": true
+    }
+  },
+  {
+    "templateId": "ent-quy-trinh-nghiep-vu",
+    "name": "Quy trình nghiệp vụ (SOP doanh nghiệp)",
+    "group": "enterprise",
+    "docType": "quyTrinhNghiepVu",
+    "scope": "enterpriseInternal",
+    "description": "Mẫu SOP có Khung kiểm soát tài liệu (Mã SOP, Phiên bản, Ngày hiệu lực), Ma trận các bước thực hiện RACI và khối ký Soạn thảo / Thẩm định / Phê duyệt.",
+    "isSystem": true,
+    "isDefaultForDocType": true,
+    "version": "1.0.0",
+    "status": "active",
+    "sourceDocxAssetId": null,
+    "detectedPlaceholders": ["ten_co_quan", "co_quan_chu_quan", "so_van_ban", "dia_danh", "ngay_thang", "trich_yeu", "nguoi_nhan", "chuc_vu", "nguoi_ky"],
+    "updatedAt": "2026-11-19",
+    "headerConfig": {
+      "enabled": true,
+      "baseAdminDocType": "quyChe",
+      "customDocTypeLabel": "QUY TRÌNH NGHIỆP VỤ (SOP)",
+      "symbolPrefix": "SOP",
+      "useLeftCellSubject": false,
+      "showGoverningOrg": true,
+      "showIssuingOrg": true,
+      "showNationalHeader": true,
+      "respectOrgEnterpriseLayout": true,
+      "showNumberSymbol": true,
+      "showLocationDate": true,
+      "showDocTypeAndSubject": true,
+      "includeControlBox": true
+    },
+    "contentStructure": [
+      {
+        "sectionId": "sop-muc-1",
+        "title": "1. Mục đích và phạm vi áp dụng",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Mô tả mục tiêu chuẩn hóa của quy trình {{trich_yeu}} và phạm vi phòng ban/vị trí áp dụng tại {{ten_co_quan}}.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "sop-bang-buoc",
+        "title": "2. Lưu đồ các bước thực hiện và trách nhiệm",
+        "kind": "tableBlock",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [],
+        "inlineTable": {
+          "caption": "Bảng chi tiết các bước quy trình nghiệp vụ",
+          "columns": [
+            { "header": "Bước", "widthPct": 10, "align": "center" },
+            { "header": "Mô tả thao tác / Công việc", "widthPct": 38, "align": "left" },
+            { "header": "Vai trò thực hiện", "widthPct": 22, "align": "left" },
+            { "header": "SLA / Biểu mẫu", "widthPct": 30, "align": "left" }
+          ],
+          "sampleRows": [
+            ["Bước 1", "[Nhập mô tả bước 1]", "[Vị trí A]", "[Thời hạn / BM-01]"],
+            ["Bước 2", "[Nhập mô tả bước 2]", "[Vị trí B]", "[Thời hạn / BM-02]"]
+          ]
+        }
+      },
+      {
+        "sectionId": "sop-ho-so",
+        "title": "3. Hồ sơ lưu trữ và kiểm soát thay đổi",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Nêu yêu cầu lưu trữ hồ sơ phát sinh từ quy trình và chu kỳ rà soát cập nhật.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "sop-dinh-nghia",
+        "title": "4. Thuật ngữ và từ viết tắt (tùy chọn)",
+        "kind": "paragraphBlock",
+        "required": false,
+        "enabledByDefault": false,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập (tùy chọn): Giải thích các thuật ngữ chuyên môn sử dụng trong SOP.]"
+        ],
+        "inlineTable": null
+      }
+    ],
+    "footerConfig": {
+      "showRecipientList": true,
+      "recipientHeaderLabel": "Phạm vi phổ biến:",
+      "defaultRecipients": ["- {{nguoi_nhan}};", "- Lưu: Kiểm soát chất lượng / Hành chính."],
+      "includePageNumbers": true,
+      "pageNumberPosition": "topCenter",
+      "footerNoteTemplate": "Tài liệu kiểm soát nội bộ — {{ten_co_quan}}"
+    },
+    "signatureConfig": {
+      "layout": "tripleApproval",
+      "authorityMode": "",
+      "authorityPrefixLabel": "",
+      "signerTitlePlaceholder": "{{chuc_vu}}",
+      "signerNamePlaceholder": "{{nguoi_ky}}",
+      "leftColumnTitle": "NGƯỜI SOẠN THẢO",
+      "middleColumnTitle": "NGƯỜI THẨM ĐỊNH",
+      "blankLinesForSeal": 3
+    },
+    "tableConfig": {
+      "defaultFontName": "Times New Roman",
+      "defaultFontSizePt": 13,
+      "headerBold": true,
+      "repeatHeaderRow": true,
+      "preventRowSplit": true,
+      "borderStyle": "single",
+      "borderSizeEighthsPt": 4,
+      "cellPaddingTopBottomTwips": 60,
+      "cellPaddingLeftRightTwips": 108,
+      "fitToPrintableWidth": true
+    },
+    "formatRules": {
+      "paperSize": "a4",
+      "marginTopMm": 20,
+      "marginBottomMm": 20,
+      "marginLeftMm": 30,
+      "marginRightMm": 15,
+      "fontFamily": "Times New Roman",
+      "bodyFontSizePt": 14,
+      "lineSpacingMultiple": 1.15,
+      "spaceBeforePt": 0,
+      "spaceAfterPt": 6,
+      "firstLineIndentCm": 1.0,
+      "bodyAlignment": "both",
+      "enforceCompatibilityCheck": true
+    }
+  },
+  {
+    "templateId": "ent-van-ban-dieu-hanh",
+    "name": "Văn bản điều hành nội bộ",
+    "group": "enterprise",
+    "docType": "vanBanDieuHanh",
+    "scope": "enterpriseInternal",
+    "description": "Mẫu Văn bản điều hành chỉ đạo triển khai nhiệm vụ, giao việc trực tiếp từ Ban điều hành tới các phòng ban/chi nhánh.",
+    "isSystem": true,
+    "isDefaultForDocType": true,
+    "version": "1.0.0",
+    "status": "active",
+    "sourceDocxAssetId": null,
+    "detectedPlaceholders": ["ten_co_quan", "co_quan_chu_quan", "so_van_ban", "dia_danh", "ngay_thang", "trich_yeu", "nguoi_nhan", "chuc_vu", "nguoi_ky"],
+    "updatedAt": "2026-11-19",
+    "headerConfig": {
+      "enabled": true,
+      "baseAdminDocType": "vanBanNoiBo",
+      "customDocTypeLabel": "VĂN BẢN ĐIỀU HÀNH",
+      "symbolPrefix": "ĐH",
+      "useLeftCellSubject": false,
+      "showGoverningOrg": true,
+      "showIssuingOrg": true,
+      "showNationalHeader": true,
+      "respectOrgEnterpriseLayout": true,
+      "showNumberSymbol": true,
+      "showLocationDate": true,
+      "showDocTypeAndSubject": true,
+      "includeControlBox": false
+    },
+    "contentStructure": [
+      {
+        "sectionId": "dh-kinh-gui",
+        "title": "",
+        "kind": "recipientSalutation",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "center",
+        "headingBold": false,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": ["Kính gửi: {{nguoi_nhan}}"],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "dh-chi-dao",
+        "title": "1. Nội dung chỉ đạo điều hành",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "Trước yêu cầu triển khai {{trich_yeu}}, {{chuc_vu}} {{ten_co_quan}} yêu cầu các bộ phận thực hiện các nội dung sau:",
+          "[Hướng dẫn nhập: Liệt kê các chỉ thị, nguyên tắc điều hành và tiêu chuẩn cần tuân thủ.]"
+        ],
+        "inlineTable": null
+      },
+      {
+        "sectionId": "dh-bang-giao-viec",
+        "title": "Bảng phân công đầu mối thực hiện (tùy chọn)",
+        "kind": "tableBlock",
+        "required": false,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [],
+        "inlineTable": {
+          "caption": "Bảng nhiệm vụ điều hành",
+          "columns": [
+            { "header": "Nhiệm vụ", "widthPct": 44, "align": "left" },
+            { "header": "Đơn vị chịu trách nhiệm", "widthPct": 30, "align": "left" },
+            { "header": "Mốc hoàn thành", "widthPct": 26, "align": "center" }
+          ],
+          "sampleRows": [
+            ["[Nhập nhiệm vụ chỉ đạo]", "[Phòng / Chi nhánh]", "[Mốc ngày]"]
+          ]
+        }
+      },
+      {
+        "sectionId": "dh-bao-cao",
+        "title": "2. Chế độ đôn đốc và báo cáo kết quả",
+        "kind": "headingSection",
+        "required": true,
+        "enabledByDefault": true,
+        "headingAlignment": "left",
+        "headingBold": true,
+        "headingItalic": false,
+        "headingUppercase": false,
+        "bodyParagraphs": [
+          "[Hướng dẫn nhập: Quy định đầu mối tiếp nhận báo cáo tiến độ và xử lý vướng mắc phát sinh.]"
+        ],
+        "inlineTable": null
+      }
+    ],
+    "footerConfig": {
+      "showRecipientList": true,
+      "recipientHeaderLabel": "Nơi nhận:",
+      "defaultRecipients": ["- {{nguoi_nhan}};", "- Lưu: Văn phòng điều hành."],
+      "includePageNumbers": true,
+      "pageNumberPosition": "topCenter",
+      "footerNoteTemplate": ""
+    },
+    "signatureConfig": {
+      "layout": "singleRight",
+      "authorityMode": "",
+      "authorityPrefixLabel": "",
+      "signerTitlePlaceholder": "{{chuc_vu}}",
+      "signerNamePlaceholder": "{{nguoi_ky}}",
+      "leftColumnTitle": "",
+      "middleColumnTitle": "",
+      "blankLinesForSeal": 3
+    },
+    "tableConfig": {
+      "defaultFontName": "Times New Roman",
+      "defaultFontSizePt": 13,
+      "headerBold": true,
+      "repeatHeaderRow": true,
+      "preventRowSplit": true,
+      "borderStyle": "single",
+      "borderSizeEighthsPt": 4,
+      "cellPaddingTopBottomTwips": 60,
+      "cellPaddingLeftRightTwips": 108,
+      "fitToPrintableWidth": true
+    },
+    "formatRules": {
+      "paperSize": "a4",
+      "marginTopMm": 20,
+      "marginBottomMm": 20,
+      "marginLeftMm": 30,
+      "marginRightMm": 15,
+      "fontFamily": "Times New Roman",
+      "bodyFontSizePt": 14,
+      "lineSpacingMultiple": 1.15,
+      "spaceBeforePt": 0,
+      "spaceAfterPt": 6,
+      "firstLineIndentCm": 1.0,
+      "bodyAlignment": "both",
+      "enforceCompatibilityCheck": true
+    }
+  }
+]

@@ -1,3 +1,5 @@
+use crate::engine::reliability::error_code::{AppErrorCode, AppStructuredError};
+use crate::engine::reliability::resource_guard;
 use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, BytesText, Event};
 use quick_xml::{Reader, Writer};
 use std::io::Cursor;
@@ -9,6 +11,7 @@ pub enum XmlNode {
     CData(String),
     Comment(String),
     PI(String),
+    #[allow(dead_code)]
     DocType(String),
 }
 
@@ -206,6 +209,20 @@ fn collect_element_text(el: &XmlElement, out: &mut String) {
 
 impl XmlDocument {
     pub fn parse(xml: &str) -> Result<Self, String> {
+        resource_guard::check_xml_size(xml.len())?;
+        if xml.contains("<!") {
+            let upper = xml.to_ascii_uppercase();
+            if upper.contains("<!DOCTYPE") || upper.contains("<!ENTITY") {
+                return Err(AppStructuredError::new(
+                    AppErrorCode::ErrXmlMalformed,
+                    "Phát hiện khai báo DTD/DOCTYPE/ENTITY bị cấm trong chuẩn Office Open XML (nguy cơ XXE / XML Entity Expansion).",
+                )
+                .format_user_message());
+            }
+        }
+        let limits = resource_guard::current_limits();
+        let mut element_count: usize = 0;
+
         let mut reader = Reader::from_str(xml);
         let mut decl: Option<(String, Option<String>, Option<String>)> = None;
         let mut prelude: Vec<XmlNode> = Vec::new();
@@ -231,10 +248,54 @@ impl XmlDocument {
                     decl = Some((version, encoding, standalone));
                 }
                 Ok(Event::Start(e)) => {
+                    element_count += 1;
+                    if element_count > limits.max_xml_elements {
+                        return Err(AppStructuredError::new(
+                            AppErrorCode::ErrResourceLimit,
+                            format!(
+                                "Số phần tử XML ({}) vượt giới hạn an toàn tối đa ({}).",
+                                element_count, limits.max_xml_elements
+                            ),
+                        )
+                        .format_user_message());
+                    }
+                    if stack.len() + 1 > limits.max_xml_depth {
+                        return Err(AppStructuredError::new(
+                            AppErrorCode::ErrResourceLimit,
+                            format!(
+                                "Độ sâu lồng thẻ XML ({}) vượt giới hạn an toàn tối đa ({}).",
+                                stack.len() + 1,
+                                limits.max_xml_depth
+                            ),
+                        )
+                        .format_user_message());
+                    }
                     let el = parse_start_element(&reader, &e)?;
                     stack.push(el);
                 }
                 Ok(Event::Empty(e)) => {
+                    element_count += 1;
+                    if element_count > limits.max_xml_elements {
+                        return Err(AppStructuredError::new(
+                            AppErrorCode::ErrResourceLimit,
+                            format!(
+                                "Số phần tử XML ({}) vượt giới hạn an toàn tối đa ({}).",
+                                element_count, limits.max_xml_elements
+                            ),
+                        )
+                        .format_user_message());
+                    }
+                    if stack.len() + 1 > limits.max_xml_depth {
+                        return Err(AppStructuredError::new(
+                            AppErrorCode::ErrResourceLimit,
+                            format!(
+                                "Độ sâu lồng thẻ XML ({}) vượt giới hạn an toàn tối đa ({}).",
+                                stack.len() + 1,
+                                limits.max_xml_depth
+                            ),
+                        )
+                        .format_user_message());
+                    }
                     let el = parse_start_element(&reader, &e)?;
                     if let Some(parent) = stack.last_mut() {
                         parent.children.push(XmlNode::Element(el));
@@ -296,13 +357,12 @@ impl XmlDocument {
                         prelude.push(XmlNode::PI(text));
                     }
                 }
-                Ok(Event::DocType(dt)) => {
-                    let text = reader
-                        .decoder()
-                        .decode(&dt)
-                        .map_err(|e| format!("Lỗi giải mã DocType: {}", e))?
-                        .into_owned();
-                    prelude.push(XmlNode::DocType(text));
+                Ok(Event::DocType(_)) => {
+                    return Err(AppStructuredError::new(
+                        AppErrorCode::ErrXmlMalformed,
+                        "Phát hiện khai báo DTD/DOCTYPE/ENTITY bị cấm trong chuẩn Office Open XML (nguy cơ XXE / XML Entity Expansion).",
+                    )
+                    .format_user_message());
                 }
                 Ok(Event::Eof) => break,
                 Err(e) => return Err(format!("Lỗi phân tích cú pháp XML: {}", e)),

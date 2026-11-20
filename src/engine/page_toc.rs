@@ -462,7 +462,82 @@ fn apply_headers_footers_and_page_numbers(
     let want_header = (cfg.page_numbers_enabled && is_top) || !cfg.header_text.trim().is_empty();
     let want_footer = (cfg.page_numbers_enabled && !is_top) || !cfg.footer_text.trim().is_empty();
 
-    if want_header {
+    // Map existing doc rel IDs -> normalized part paths (e.g., "rId4" -> "word/footer1.xml")
+    let existing_rels = collect_doc_rel_map(pkg);
+
+    // Strip old PAGE fields from opposite-edge legacy parts BEFORE updating section references,
+    // and track which opposite-edge parts still hold meaningful content (text, images, tables, OLE).
+    let mut non_empty_hf_parts: HashSet<String> = HashSet::new();
+    if cfg.page_numbers_enabled {
+        let strip_prefix = if is_top && !want_footer {
+            Some("word/footer")
+        } else if !is_top && !want_header {
+            Some("word/header")
+        } else {
+            None
+        };
+        if let Some(prefix) = strip_prefix {
+            let targets: Vec<String> = pkg
+                .entries
+                .iter()
+                .filter(|e| {
+                    let l = e.name.to_ascii_lowercase();
+                    l.starts_with(prefix) && l.ends_with(".xml") && !l.contains("chuanhoa")
+                })
+                .map(|e| e.name.clone())
+                .collect();
+            for part in targets {
+                if let Some(xml) = pkg.get_xml(&part) {
+                    if let Ok(mut hf_doc) = XmlDocument::parse(&xml) {
+                        strip_page_fields_from_hf(&mut hf_doc.root);
+                        if hf_has_meaningful_content(&hf_doc.root) {
+                            non_empty_hf_parts.insert(part.to_ascii_lowercase());
+                        }
+                        if let Ok(updated) = hf_doc.to_xml_string() {
+                            pkg.set_xml(&part, updated);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Check if any existing target-edge default header/footer already has meaningful non-PAGE content
+    // when the user did NOT request replacing it with custom text.
+    let mut preserved_header_updated = false;
+    let mut preserved_footer_updated = false;
+
+    if want_header && cfg.header_text.trim().is_empty() {
+        if let Some(part) = find_existing_default_hf_part(doc, &existing_rels, "w:headerReference") {
+            if let Some(xml) = pkg.get_xml(&part) {
+                if let Ok(mut hf_doc) = XmlDocument::parse(&xml) {
+                    strip_page_fields_from_hf(&mut hf_doc.root);
+                    if hf_has_meaningful_content(&hf_doc.root) {
+                        append_page_num_to_hf_doc(&mut hf_doc, odd_jc, &fmt.font_name, cfg.page_num_font_size_pt)?;
+                        pkg.set_xml(&part, hf_doc.to_xml_string()?);
+                        preserved_header_updated = true;
+                    }
+                }
+            }
+        }
+    }
+
+    if want_footer && cfg.footer_text.trim().is_empty() {
+        if let Some(part) = find_existing_default_hf_part(doc, &existing_rels, "w:footerReference") {
+            if let Some(xml) = pkg.get_xml(&part) {
+                if let Ok(mut hf_doc) = XmlDocument::parse(&xml) {
+                    strip_page_fields_from_hf(&mut hf_doc.root);
+                    if hf_has_meaningful_content(&hf_doc.root) {
+                        append_page_num_to_hf_doc(&mut hf_doc, odd_jc, &fmt.font_name, cfg.page_num_font_size_pt)?;
+                        pkg.set_xml(&part, hf_doc.to_xml_string()?);
+                        preserved_footer_updated = true;
+                    }
+                }
+            }
+        }
+    }
+
+    if want_header && !preserved_header_updated {
         let xml = build_header_footer_xml(
             "w:hdr",
             cfg.page_numbers_enabled && is_top,
@@ -506,7 +581,7 @@ fn apply_headers_footers_and_page_numbers(
         }
     }
 
-    if want_footer {
+    if want_footer && !preserved_footer_updated {
         let xml = build_header_footer_xml(
             "w:ftr",
             cfg.page_numbers_enabled && !is_top,
@@ -578,7 +653,7 @@ fn apply_headers_footers_and_page_numbers(
                 continue;
             };
 
-            if want_header {
+            if want_header && !preserved_header_updated {
                 sect_pr.remove_children_by_name("w:headerReference");
                 if let Some(ref rid) = hdr_rid_default {
                     let mut hr = XmlElement::new("w:headerReference");
@@ -592,12 +667,12 @@ fn apply_headers_footers_and_page_numbers(
                     hr.set_attr("r:id", rid_even);
                     sect_pr.insert_child_ordered(hr, SECT_PR_ORDER);
                 }
-            } else if cfg.page_numbers_enabled && !is_top {
-                // Moving page numbers to bottom: clear legacy header references/page fields
-                sect_pr.remove_children_by_name("w:headerReference");
+            } else if cfg.page_numbers_enabled && !is_top && !want_header {
+                // Only unlink opposite header references whose stripped part has NO meaningful non-PAGE content left
+                retain_non_empty_hf_refs(sect_pr, "w:headerReference", &existing_rels, &non_empty_hf_parts);
             }
 
-            if want_footer {
+            if want_footer && !preserved_footer_updated {
                 sect_pr.remove_children_by_name("w:footerReference");
                 if let Some(ref rid) = ftr_rid_default {
                     let mut fr = XmlElement::new("w:footerReference");
@@ -611,9 +686,9 @@ fn apply_headers_footers_and_page_numbers(
                     fr.set_attr("r:id", rid_even);
                     sect_pr.insert_child_ordered(fr, SECT_PR_ORDER);
                 }
-            } else if cfg.page_numbers_enabled && is_top {
-                // Moving page numbers to top: remove old bottom footer references so page number doesn't appear twice
-                sect_pr.remove_children_by_name("w:footerReference");
+            } else if cfg.page_numbers_enabled && is_top && !want_footer {
+                // Only unlink opposite footer references whose stripped part has NO meaningful non-PAGE content left
+                retain_non_empty_hf_refs(sect_pr, "w:footerReference", &existing_rels, &non_empty_hf_parts);
             }
 
             let pg_mar = sect_pr.ensure_child_ordered("w:pgMar", SECT_PR_ORDER);
@@ -636,38 +711,127 @@ fn apply_headers_footers_and_page_numbers(
         }
     }
 
-    // Strip old PAGE fields inside legacy footers/headers on the opposite edge so page numbers never duplicate
-    if cfg.page_numbers_enabled {
-        let strip_prefix = if is_top && !want_footer {
-            Some("word/footer")
-        } else if !is_top && !want_header {
-            Some("word/header")
-        } else {
-            None
+    Ok(())
+}
+
+fn collect_doc_rel_map(pkg: &OpenXmlPackage) -> std::collections::HashMap<String, String> {
+    let mut map = std::collections::HashMap::new();
+    let Some(rels_xml) = pkg.get_xml("word/_rels/document.xml.rels") else {
+        return map;
+    };
+    let Ok(doc) = XmlDocument::parse(&rels_xml) else {
+        return map;
+    };
+    for node in &doc.root.children {
+        if let XmlNode::Element(el) = node {
+            if el.name == "Relationship" {
+                if let (Some(id), Some(target)) = (el.get_attr("Id"), el.get_attr("Target")) {
+                    let norm = if target.starts_with('/') {
+                        target.trim_start_matches('/').to_string()
+                    } else if target.to_ascii_lowercase().starts_with("word/") {
+                        target.to_string()
+                    } else {
+                        format!("word/{}", target)
+                    };
+                    map.insert(id.to_string(), norm);
+                }
+            }
+        }
+    }
+    map
+}
+
+fn find_existing_default_hf_part(
+    doc: &XmlDocument,
+    rel_map: &std::collections::HashMap<String, String>,
+    ref_tag: &str,
+) -> Option<String> {
+    let body = doc.root.child("w:body")?;
+    for node in &body.children {
+        let sect_opt = match node {
+            XmlNode::Element(el) if el.name == "w:sectPr" => Some(el),
+            XmlNode::Element(el) if el.name == "w:p" => el
+                .child("w:pPr")
+                .and_then(|pp| pp.child("w:sectPr")),
+            _ => None,
         };
-        if let Some(prefix) = strip_prefix {
-            let targets: Vec<String> = pkg
-                .entries
-                .iter()
-                .filter(|e| {
-                    let l = e.name.to_ascii_lowercase();
-                    l.starts_with(prefix) && l.ends_with(".xml") && !l.contains("chuanhoa")
-                })
-                .map(|e| e.name.clone())
-                .collect();
-            for part in targets {
-                if let Some(xml) = pkg.get_xml(&part) {
-                    if let Ok(mut hf_doc) = XmlDocument::parse(&xml) {
-                        strip_page_fields_from_hf(&mut hf_doc.root);
-                        if let Ok(updated) = hf_doc.to_xml_string() {
-                            pkg.set_xml(&part, updated);
+        let Some(sect_pr) = sect_opt else { continue; };
+        for ch in &sect_pr.children {
+            if let XmlNode::Element(r) = ch {
+                if r.name == ref_tag
+                    && r.get_attr("w:type").unwrap_or("default") == "default"
+                {
+                    if let Some(rid) = r.get_attr("r:id") {
+                        if let Some(target) = rel_map.get(rid) {
+                            return Some(target.clone());
                         }
                     }
                 }
             }
         }
     }
+    None
+}
 
+fn retain_non_empty_hf_refs(
+    sect_pr: &mut XmlElement,
+    ref_tag: &str,
+    rel_map: &std::collections::HashMap<String, String>,
+    non_empty_hf_parts: &HashSet<String>,
+) {
+    sect_pr.children.retain(|n| {
+        let XmlNode::Element(el) = n else {
+            return true;
+        };
+        if el.name != ref_tag {
+            return true;
+        }
+        let Some(rid) = el.get_attr("r:id") else {
+            return false;
+        };
+        rel_map
+            .get(rid)
+            .map(|target| non_empty_hf_parts.contains(&target.to_ascii_lowercase()))
+            .unwrap_or(false)
+    });
+}
+
+fn hf_has_meaningful_content(root: &XmlElement) -> bool {
+    if !root.extract_text().trim().is_empty() {
+        return true;
+    }
+    has_visual_or_table_child(root)
+}
+
+fn has_visual_or_table_child(el: &XmlElement) -> bool {
+    if matches!(
+        el.name.as_str(),
+        "w:tbl" | "w:drawing" | "w:pict" | "w:object"
+    ) {
+        return true;
+    }
+    el.children.iter().any(|c| match c {
+        XmlNode::Element(sub) => has_visual_or_table_child(sub),
+        _ => false,
+    })
+}
+
+fn append_page_num_to_hf_doc(
+    hf_doc: &mut XmlDocument,
+    jc_val: &str,
+    font_name: &str,
+    font_size_pt: f64,
+) -> Result<(), String> {
+    let half_pt = pt_to_half_pts(font_size_pt);
+    let p_xml = format!(
+        r#"<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:pPr><w:jc w:val="{jc}"/></w:pPr><w:r><w:rPr><w:rFonts w:ascii="{font}" w:hAnsi="{font}" w:cs="{font}"/><w:sz w:val="{half}"/><w:szCs w:val="{half}"/></w:rPr><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:rPr><w:rFonts w:ascii="{font}" w:hAnsi="{font}" w:cs="{font}"/><w:sz w:val="{half}"/><w:szCs w:val="{half}"/></w:rPr><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r><w:r><w:rPr><w:rFonts w:ascii="{font}" w:hAnsi="{font}" w:cs="{font}"/><w:sz w:val="{half}"/><w:szCs w:val="{half}"/></w:rPr><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:rPr><w:rFonts w:ascii="{font}" w:hAnsi="{font}" w:cs="{font}"/><w:sz w:val="{half}"/><w:szCs w:val="{half}"/></w:rPr><w:t>1</w:t></w:r><w:r><w:rPr><w:rFonts w:ascii="{font}" w:hAnsi="{font}" w:cs="{font}"/><w:sz w:val="{half}"/><w:szCs w:val="{half}"/></w:rPr><w:fldChar w:fldCharType="end"/></w:r></w:p>"#,
+        jc = jc_val,
+        font = escape_xml_text(font_name),
+        half = half_pt
+    );
+    let mut p_doc = XmlDocument::parse(&p_xml)?;
+    p_doc.root.attrs.retain(|(k, _)| k != "xmlns:w");
+    hf_doc.root.children.push(XmlNode::Element(p_doc.root));
     Ok(())
 }
 

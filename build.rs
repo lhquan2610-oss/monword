@@ -169,11 +169,51 @@ fn embed_windows_icon(manifest_dir: &Path, out_dir: &Path) {
         return;
     };
 
+    let pkg_ver = env::var("CARGO_PKG_VERSION").unwrap_or_else(|_| "4.0.0".to_string());
+    let mut ver_parts: Vec<&str> = pkg_ver.split('.').collect();
+    while ver_parts.len() < 4 {
+        ver_parts.push("0");
+    }
+    let ver_comma = ver_parts[..4].join(",");
     let rc_path = out_dir.join("monword.rc");
     let obj_path = out_dir.join("monword_res.o");
     // Forward slashes prevent RC escape-sequence issues with Windows backslashes.
     let ico_rc = ico_path.to_string_lossy().replace('\\', "/");
-    let rc_content = format!("1 ICON \"{}\"\n", ico_rc);
+    let rc_content = format!(
+        r#"1 ICON "{ico}"
+1 VERSIONINFO
+FILEVERSION {ver_comma}
+PRODUCTVERSION {ver_comma}
+FILEFLAGSMASK 0x3fL
+FILEFLAGS 0x0L
+FILEOS 0x40004L
+FILETYPE 0x1L
+FILESUBTYPE 0x0L
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904b0"
+    BEGIN
+      VALUE "CompanyName", "Mon Office Ecosystem\0"
+      VALUE "FileDescription", "MonWord {pkg_ver} - Chuan Hoa Van Ban Hanh Chinh Pro\0"
+      VALUE "FileVersion", "{pkg_ver}.0\0"
+      VALUE "InternalName", "MonWord\0"
+      VALUE "LegalCopyright", "Copyright (C) 2026 Mon Office Ecosystem. All rights reserved.\0"
+      VALUE "OriginalFilename", "MonWord.exe\0"
+      VALUE "ProductName", "MonWord - Chuan Hoa Van Ban Pro\0"
+      VALUE "ProductVersion", "{pkg_ver}\0"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x0409, 1200
+  END
+END
+"#,
+        ico = ico_rc,
+        ver_comma = ver_comma,
+        pkg_ver = pkg_ver
+    );
     fs::write(&rc_path, rc_content).expect("Failed to write monword.rc");
 
     let status = Command::new(&windres_bin)

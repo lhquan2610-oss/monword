@@ -1991,6 +1991,29 @@ fn collect_line_widths(
     }
 }
 
+pub(crate) fn estimate_text_line_twips(text: &str, size_pt: f64, is_bold: bool, all_caps: bool) -> i32 {
+    let em_twips = size_pt * 20.0;
+    let mut cur = 0.0f64;
+    let mut max_w = 0.0f64;
+    for ch in text.chars() {
+        if ch == '\n' || ch == '\r' {
+            if cur > max_w {
+                max_w = cur;
+            }
+            cur = 0.0;
+            continue;
+        }
+        if all_caps {
+            for up in ch.to_uppercase() {
+                cur += glyph_width_thousandths(up, is_bold) / 1000.0 * em_twips;
+            }
+        } else {
+            cur += glyph_width_thousandths(ch, is_bold) / 1000.0 * em_twips;
+        }
+    }
+    max_w.max(cur).ceil() as i32
+}
+
 fn glyph_width_thousandths(ch: char, is_bold: bool) -> f64 {
     if ch == ' ' || ch == '\u{00A0}' {
         return 250.0;
@@ -2593,6 +2616,7 @@ pub fn paragraph_has_center_or_right_jc(p: &XmlElement) -> bool {
         .unwrap_or(false)
 }
 
+#[allow(dead_code)]
 pub fn is_protected_admin_paragraph(p: &XmlElement, para_idx: usize) -> bool {
     is_protected_admin_paragraph_ctx(p, para_idx < 12)
 }

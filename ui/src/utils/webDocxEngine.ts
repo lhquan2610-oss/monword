@@ -1,6 +1,10 @@
 import type { AuditIssue, AuditReport, FileProcessResult, FileQueueItem, ProcessConfig } from '../types';
 
 const W_NS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+const WEB_MAX_FILE_BYTES = 128 * 1024 * 1024;
+const WEB_MAX_UNCOMPRESSED_ZIP_BYTES = 384 * 1024 * 1024;
+const WEB_MAX_ZIP_ENTRIES = 5000;
+const WEB_MAX_COMPRESSION_RATIO = 120;
 
 interface ZipEntry {
   name: string;
@@ -63,8 +67,33 @@ async function transformDeflateRaw(
   return out;
 }
 
-async function readZipEntries(buffer: ArrayBuffer): Promise<Map<string, Uint8Array>> {
+export async function readZipEntries(buffer: ArrayBuffer): Promise<Map<string, Uint8Array>> {
+  if (buffer.byteLength > WEB_MAX_FILE_BYTES) {
+    throw new Error('[ERR_RESOURCE_LIMIT] Tệp vượt quá giới hạn dung lượng 128 MB trên trình duyệt.');
+  }
   const bytes = new Uint8Array(buffer);
+  if (
+    bytes.length >= 8 &&
+    bytes[0] === 0xd0 &&
+    bytes[1] === 0xcf &&
+    bytes[2] === 0x11 &&
+    bytes[3] === 0xe0 &&
+    bytes[4] === 0xa1 &&
+    bytes[5] === 0xb1 &&
+    bytes[6] === 0x1a &&
+    bytes[7] === 0xe1
+  ) {
+    const sample = bytes.subarray(0, Math.min(bytes.length, 262144));
+    const utf16Text = new TextDecoder('utf-16le').decode(sample);
+    if (utf16Text.includes('EncryptedPackage') || utf16Text.includes('EncryptionInfo')) {
+      throw new Error(
+        '[ERR_FILE_LOCKED_OR_CONFLICT] Tệp được đặt mật khẩu mã hóa (Encrypt with Password). Hãy mở bằng Word và gỡ mật khẩu trước khi chuẩn hóa.',
+      );
+    }
+    throw new Error(
+      '[ERR_DOC_CONVERT] Tệp có định dạng nhị phân Office 97-2003 (.doc/.xls). Trình duyệt chỉ hỗ trợ .docx/.docm; hãy lưu sang .docx hoặc dùng bản Windows MonWord.exe.',
+    );
+  }
   const view = new DataView(buffer);
   const minPos = Math.max(0, bytes.length - 65558);
   let eocdOffset = -1;
@@ -75,13 +104,18 @@ async function readZipEntries(buffer: ArrayBuffer): Promise<Map<string, Uint8Arr
     }
   }
   if (eocdOffset < 0) {
-    throw new Error('Không tìm thấy cấu trúc ZIP OpenXML hợp lệ trong tệp.');
+    throw new Error('[ERR_OPENXML_CORRUPT] Không tìm thấy cấu trúc ZIP OpenXML hợp lệ trong tệp.');
   }
 
   const totalEntries = view.getUint16(eocdOffset + 10, true);
+  if (totalEntries > WEB_MAX_ZIP_ENTRIES) {
+    throw new Error(`[ERR_RESOURCE_LIMIT] Số tệp trong gói ZIP (${totalEntries}) vượt giới hạn ${WEB_MAX_ZIP_ENTRIES}.`);
+  }
   let cdOffset = view.getUint32(eocdOffset + 16, true);
   const decoder = new TextDecoder('utf-8');
   const map = new Map<string, Uint8Array>();
+  const seenLower = new Set<string>();
+  let totalInflatedBytes = 0;
 
   for (let i = 0; i < totalEntries; i++) {
     if (cdOffset + 46 > bytes.length || view.getUint32(cdOffset, true) !== 0x02014b50) {
@@ -89,35 +123,71 @@ async function readZipEntries(buffer: ArrayBuffer): Promise<Map<string, Uint8Arr
     }
     const method = view.getUint16(cdOffset + 10, true);
     const compSize = view.getUint32(cdOffset + 20, true);
+    const declUncompSize = view.getUint32(cdOffset + 24, true);
     const nameLen = view.getUint16(cdOffset + 28, true);
     const extraLen = view.getUint16(cdOffset + 30, true);
     const commentLen = view.getUint16(cdOffset + 32, true);
     const localOffset = view.getUint32(cdOffset + 42, true);
 
-    const name = decoder.decode(bytes.subarray(cdOffset + 46, cdOffset + 46 + nameLen));
+    const rawName = decoder.decode(bytes.subarray(cdOffset + 46, cdOffset + 46 + nameLen));
     cdOffset += 46 + nameLen + extraLen + commentLen;
 
-    if (name.endsWith('/')) continue;
+    if (rawName.endsWith('/')) continue;
+    if (
+      !rawName ||
+      rawName.includes(':') ||
+      rawName.startsWith('//') ||
+      rawName.startsWith('\\\\') ||
+      rawName.split(/[\\/]/).some((s) => s === '..' || s === '.') ||
+      /[\x00-\x1f]/.test(rawName)
+    ) {
+      throw new Error(`[ERR_OPENXML_CORRUPT] Đường dẫn entry ZIP không an toàn: '${rawName}'.`);
+    }
+    const name = rawName.replace(/^\/+/, '').replace(/\\/g, '/');
+    const nameLow = name.toLowerCase();
+    if (seenLower.has(nameLow)) {
+      throw new Error(`[ERR_OPENXML_CORRUPT] Gói ZIP chứa entry trùng lặp bất thường: '${name}'.`);
+    }
+    seenLower.add(nameLow);
     if (view.getUint32(localOffset, true) !== 0x04034b50) continue;
+
+    if (declUncompSize >= 16777216 && declUncompSize / Math.max(1, compSize) > WEB_MAX_COMPRESSION_RATIO) {
+      throw new Error(`[ERR_ZIP_BOMB] Phát hiện tỷ lệ nén bất thường tại '${name}'.`);
+    }
 
     const localNameLen = view.getUint16(localOffset + 26, true);
     const localExtraLen = view.getUint16(localOffset + 28, true);
     const dataStart = localOffset + 30 + localNameLen + localExtraLen;
     const rawSlice = bytes.subarray(dataStart, dataStart + compSize);
 
+    let entryBytes: Uint8Array;
     if (method === 0) {
-      map.set(name, new Uint8Array(rawSlice));
+      entryBytes = new Uint8Array(rawSlice);
     } else if (method === 8) {
-      const inflated = await transformDeflateRaw(rawSlice, 'inflate');
-      map.set(name, inflated);
+      entryBytes = await transformDeflateRaw(rawSlice, 'inflate');
     } else {
-      throw new Error(`Không hỗ trợ phương thức nén ZIP #${method} trên trình duyệt.`);
+      throw new Error(`[ERR_OPENXML_CORRUPT] Không hỗ trợ phương thức nén ZIP #${method} trên trình duyệt.`);
     }
+
+    if (entryBytes.byteLength >= 16777216 && entryBytes.byteLength / Math.max(1, compSize) > WEB_MAX_COMPRESSION_RATIO) {
+      throw new Error(`[ERR_ZIP_BOMB] Tỷ lệ giải nén thực tế bất thường tại '${name}'.`);
+    }
+    totalInflatedBytes += entryBytes.byteLength;
+    if (totalInflatedBytes > WEB_MAX_UNCOMPRESSED_ZIP_BYTES) {
+      throw new Error('[ERR_RESOURCE_LIMIT] Dung lượng giải nén gói DOCX vượt ngưỡng 384 MB.');
+    }
+    if ((nameLow.endsWith('.xml') || nameLow.endsWith('.rels')) && !nameLow.startsWith('word/embeddings/')) {
+      const xmlSample = decoder.decode(entryBytes.subarray(0, Math.min(entryBytes.byteLength, 16384))).toUpperCase();
+      if (xmlSample.includes('<!DOCTYPE') || xmlSample.includes('<!ENTITY')) {
+        throw new Error(`[ERR_XML_MALFORMED] Từ chối XML chứa khai báo DOCTYPE/ENTITY không hợp lệ tại '${name}'.`);
+      }
+    }
+    map.set(name, entryBytes);
   }
   return map;
 }
 
-async function writeZipEntries(entriesMap: Map<string, Uint8Array>): Promise<Uint8Array> {
+export async function writeZipEntries(entriesMap: Map<string, Uint8Array>): Promise<Uint8Array> {
   const encoder = new TextEncoder();
   const entries: ZipEntry[] = Array.from(entriesMap.entries()).map(([name, data]) => ({ name, data }));
 
@@ -615,6 +685,10 @@ export async function processWebDocxFile(
     const auditAfter = auditDocumentXml(item.name, item.path, finalExt, entries);
     const outZip = await writeZipEntries(entries);
     const outBuffer = new Uint8Array(outZip).buffer;
+    const verifiedEntries = await readZipEntries(outBuffer);
+    if (!verifiedEntries.has('word/document.xml')) {
+      throw new Error('[ERR_POST_SAVE_VERIFY] Tệp DOCX sau đóng gói thiếu word/document.xml.');
+    }
     const outBlob = new Blob([outBuffer], {
       type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     });
@@ -632,6 +706,7 @@ export async function processWebDocxFile(
       statsSummary: `${formattedParas} đoạn · ${normalizedTables} bảng · Điểm ${auditBefore.score}→${auditAfter.score}`,
       logs,
       error: null,
+      errorCode: null,
       auditBefore,
       auditAfter,
       blobUrl,
@@ -639,6 +714,8 @@ export async function processWebDocxFile(
       outputBlob: outBlob,
     };
   } catch (err) {
+    const rawMsg = (err as Error).message || 'Không thể xử lý tệp .docx trên trình duyệt.';
+    const codeMatch = rawMsg.match(/^\[(ERR_[A-Z0-9_]+)\]/);
     return {
       inputPath: item.path,
       outputPath: '',
@@ -646,7 +723,8 @@ export async function processWebDocxFile(
       success: false,
       statsSummary: '',
       logs: [],
-      error: (err as Error).message || 'Không thể xử lý tệp .docx trên trình duyệt.',
+      error: rawMsg,
+      errorCode: codeMatch ? codeMatch[1] : 'ERR_OPENXML_CORRUPT',
       auditBefore: null,
       auditAfter: null,
     };

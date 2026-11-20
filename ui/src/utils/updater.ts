@@ -1,8 +1,8 @@
 import { bridge } from '../bridge';
 import type { UpdateCheckResult, VersionHistoryEntry } from '../types';
 
-export const APP_VERSION = '1.0.0';
-export const APP_CODENAME = 'MonWord Multi-Platform LiveOTA';
+export const APP_VERSION = '4.0.0';
+export const APP_CODENAME = 'MonWord 4.0 Enterprise';
 export const GITHUB_REPO_SLUG = 'lequan2512/monword';
 export const GITHUB_RELEASES_URL = `https://github.com/${GITHUB_REPO_SLUG}/releases/latest`;
 export const LIVE_WEB_OTA_URL = 'https://monword.vercel.app';

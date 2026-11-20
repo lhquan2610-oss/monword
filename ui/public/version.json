@@ -1,18 +1,25 @@
 {
-  "version": "1.0.0",
-  "codename": "MonWord Multi-Platform LiveOTA",
+  "version": "4.0.0",
+  "codename": "MonWord 4.0 Multi-Platform Enterprise",
   "releaseDate": "19/11/2026",
-  "releaseRevision": "1.0.0-monword-liveota-20261119",
+  "releaseRevision": "4.0.0-monword-release-20261119",
   "downloadUrl": "https://github.com/lequan2512/monword/releases/latest",
   "apkUrl": "https://monword.vercel.app",
   "webUrl": "https://monword.vercel.app",
   "releaseNotes": [
-    "Ra mắt bộ nhận diện chính thức MonWord v1.0.0 (Bé Mon Xanh dương #2563EB) đồng bộ hệ sinh thái MonPDF · MonWord · MonEx.",
-    "Hỗ trợ 3 giao diện chuyên biệt cho Windows Desktop (.exe), Web (monword.vercel.app) và Mobile (iOS/Android PWA).",
-    "Tích hợp Live OTA đa nền tảng: cập nhật giao diện và quy chuẩn NĐ30/2020 trực tiếp không cần cài lại tệp cài đặt.",
-    "Chuẩn hóa trực tiếp tệp .docx trên trình duyệt Web/Mobile (100% xử lý cục bộ, không tải lên máy chủ)."
+    "Phát hành chính thức MonWord v4.0.0: Hoàn thiện toàn diện 9 Phase chuẩn hóa thể thức NĐ 30/2020/NĐ-CP, Văn bản Đảng, Doanh nghiệp & Luận văn.",
+    "Đầy đủ các module: Organization Profile, Document Header Builder, Standardization Engine, Template Library, Layout Intelligence, Compliance Audit, Live Preview A4, Safe Save & Backup Recovery.",
+    "Tăng cường bảo mật & hiệu năng: chặn Zip Bomb, DTD/XXE, file mã hóa mật khẩu, đường dẫn không an toàn, timeout Word COM, và ghi đè nguyên tử bảo toàn 13 thành phần OpenXML.",
+    "Hỗ trợ Windows x64 Installer chính thức (MonWord-Setup-v4.0.0-x64.exe) nâng cấp an toàn không ảnh hưởng dữ liệu người dùng, Web App và Live OTA."
   ],
   "history": [
+    {
+      "version": "4.0.0",
+      "date": "19/11/2026",
+      "notes": [
+        "Phát hành chính thức MonWord v4.0.0 (Windows x64 Installer & Portable · Web · Mobile PWA) sau khi hoàn tất kiểm thử tích hợp, bảo mật, hiệu năng và UAT Word thực tế."
+      ]
+    },
     {
       "version": "1.0.0",
       "date": "19/11/2026",

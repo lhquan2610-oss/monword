@@ -1,0 +1,484 @@
+{
+  "packId": "monword-nd30-compliance-pack",
+  "packName": "Bộ Quy tắc Tuân thủ Thể thức & Kỹ thuật Văn bản MonWord",
+  "packVersion": "2026.1.0",
+  "effectiveDate": "05/03/2020 (Cập nhật kỹ thuật 2026)",
+  "legalReferenceSummary": "Nghị định 30/2020/NĐ-CP (Điều 8, Điều 9, Phụ lục I, II, III), Hướng dẫn 36-HD/VPTW và Tiêu chuẩn ECMA-376 OpenXML",
+  "rules": [
+    {
+      "ruleId": "PAGE-01",
+      "ruleVersion": "1.0.0",
+      "formComponent": "pageSetup",
+      "basisKind": "legalRegulation",
+      "legalCitation": "Khoản 1 Điều 9 & Mục I Phụ lục I NĐ 30/2020/NĐ-CP",
+      "defaultObligations": {
+        "adminNd30": "mandatory",
+        "partyDocument": "mandatory",
+        "enterpriseInternal": "conditional",
+        "specializedLegal": "mandatory",
+        "academicThesis": "mandatory",
+        "freeform": "notApplicable"
+      },
+      "conditionDescription": "Bắt buộc khổ giấy A4 (210 × 297 mm) đối với văn bản hành chính, Đảng, chuyên ngành và luận văn; doanh nghiệp áp dụng theo cấu hình Hồ sơ Tổ chức.",
+      "docTypeExceptions": [],
+      "remediationGuidance": "Thiết lập lại kích thước w:pgSz về A4 dọc (11906×16838) hoặc ngang (16838×11906).",
+      "enabled": true
+    },
+    {
+      "ruleId": "PAGE-02",
+      "ruleVersion": "1.0.0",
+      "formComponent": "pageSetup",
+      "basisKind": "legalRegulation",
+      "legalCitation": "Mục I.2 Phụ lục I NĐ 30/2020/NĐ-CP",
+      "defaultObligations": {
+        "adminNd30": "mandatory",
+        "partyDocument": "mandatory",
+        "enterpriseInternal": "conditional",
+        "specializedLegal": "conditional",
+        "academicThesis": "recommended",
+        "freeform": "notApplicable"
+      },
+      "conditionDescription": "Trang dọc: Trên/Dưới 20–25 mm, Trái 30–35 mm, Phải 15–20 mm; trang ngang đảo lề gáy lên mép trên. Doanh nghiệp phụ thuộc cờ useNd30LayoutForEnterprise.",
+      "docTypeExceptions": [],
+      "remediationGuidance": "Áp dụng chuẩn hóa lề w:pgMar theo từng Section (giữ nguyên trang ngang nếu có).",
+      "enabled": true
+    },
+    {
+      "ruleId": "PAGE-03",
+      "ruleVersion": "1.0.0",
+      "formComponent": "pageSetup",
+      "basisKind": "technicalRecommendation",
+      "legalCitation": "Mục I.1 Phụ lục I NĐ 30/2020/NĐ-CP (Kỹ thuật đa Section)",
+      "defaultObligations": {
+        "adminNd30": "recommended",
+        "partyDocument": "recommended",
+        "enterpriseInternal": "recommended",
+        "specializedLegal": "recommended",
+        "academicThesis": "recommended",
+        "freeform": "recommended"
+      },
+      "conditionDescription": "Kích hoạt cảnh báo rà soát khi văn bản có từ 02 Section trở lên hoặc trộn trang dọc/ngang.",
+      "docTypeExceptions": [],
+      "remediationGuidance": "Kiểm tra ranh giới Section và không tự ý gộp các Section khác khổ giấy.",
+      "enabled": true
+    },
+    {
+      "ruleId": "FONT-01",
+      "ruleVersion": "1.0.0",
+      "formComponent": "encodingAndFont",
+      "basisKind": "legalRegulation",
+      "legalCitation": "Khoản 2 Điều 9 & Mục I.3 Phụ lục I NĐ 30/2020/NĐ-CP (TCVN 6909:2001)",
+      "defaultObligations": {
+        "adminNd30": "mandatory",
+        "partyDocument": "mandatory",
+        "enterpriseInternal": "mandatory",
+        "specializedLegal": "mandatory",
+        "academicThesis": "mandatory",
+        "freeform": "recommended"
+      },
+      "conditionDescription": "Văn bản tiếng Việt chính thức phải dùng bảng mã Unicode TCVN 6909:2001, không dùng mã cũ TCVN3/VNI.",
+      "docTypeExceptions": [],
+      "remediationGuidance": "Chuyển mã tự động các run TCVN3 (.Vn*) / VNI (VNI-*) sang Unicode dựng sẵn.",
+      "enabled": true
+    },
+    {
+      "ruleId": "FONT-02",
+      "ruleVersion": "1.0.0",
+      "formComponent": "encodingAndFont",
+      "basisKind": "legalRegulation",
+      "legalCitation": "Khoản 2 Điều 9 & Mục I.3 Phụ lục I NĐ 30/2020/NĐ-CP",
+      "defaultObligations": {
+        "adminNd30": "mandatory",
+        "partyDocument": "mandatory",
+        "enterpriseInternal": "conditional",
+        "specializedLegal": "mandatory",
+        "academicThesis": "mandatory",
+        "freeform": "recommended"
+      },
+      "conditionDescription": "Sử dụng thống nhất phông Times New Roman tiếng Việt (trừ phông ký hiệu toán học/Symbol/Wingdings).",
+      "docTypeExceptions": [],
+      "remediationGuidance": "Chuẩn hóa w:rFonts về Times New Roman (giữ nguyên ký hiệu Symbol/Wingdings).",
+      "enabled": true
+    },
+    {
+      "ruleId": "FONT-03",
+      "ruleVersion": "1.0.0",
+      "formComponent": "encodingAndFont",
+      "basisKind": "legalRegulation",
+      "legalCitation": "Mục II & Bảng tổng hợp cỡ chữ Phụ lục I NĐ 30/2020/NĐ-CP",
+      "defaultObligations": {
+        "adminNd30": "mandatory",
+        "partyDocument": "mandatory",
+        "enterpriseInternal": "conditional",
+        "specializedLegal": "conditional",
+        "academicThesis": "recommended",
+        "freeform": "notApplicable"
+      },
+      "conditionDescription": "Lời văn 13–14pt; Quốc hiệu 12–13pt; Tiêu ngữ 13–14pt; Nơi nhận 11–12pt; Bảng dữ liệu 11–13pt.",
+      "docTypeExceptions": [],
+      "remediationGuidance": "Đồng bộ cỡ chữ theo từng vai trò thành phần thể thức nhận diện được.",
+      "enabled": true
+    },
+    {
+      "ruleId": "FONT-04",
+      "ruleVersion": "1.0.0",
+      "formComponent": "encodingAndFont",
+      "basisKind": "legalRegulation",
+      "legalCitation": "Mục I.3 Phụ lục I NĐ 30/2020/NĐ-CP",
+      "defaultObligations": {
+        "adminNd30": "mandatory",
+        "partyDocument": "mandatory",
+        "enterpriseInternal": "conditional",
+        "specializedLegal": "mandatory",
+        "academicThesis": "mandatory",
+        "freeform": "notApplicable"
+      },
+      "conditionDescription": "Văn bản hành chính sử dụng màu chữ đen chuẩn (#000000), ngoại trừ siêu liên kết Hyperlink.",
+      "docTypeExceptions": [],
+      "remediationGuidance": "Chuyển màu chữ nội dung về đen 000000 (bỏ qua w:hyperlink).",
+      "enabled": true
+    },
+    {
+      "ruleId": "FONT-05",
+      "ruleVersion": "1.0.0",
+      "formComponent": "mainBody",
+      "basisKind": "technicalRecommendation",
+      "legalCitation": "Kỹ thuật soạn thảo văn bản OpenXML chuẩn NĐ 30/2020/NĐ-CP",
+      "defaultObligations": {
+        "adminNd30": "recommended",
+        "partyDocument": "recommended",
+        "enterpriseInternal": "recommended",
+        "specializedLegal": "recommended",
+        "academicThesis": "recommended",
+        "freeform": "recommended"
+      },
+      "conditionDescription": "Khuyến nghị xử lý khoảng trắng kép, dấu cách trước dấu câu và ký tự điều khiển lạ (không đụng chỗ điền số/ngày).",
+      "docTypeExceptions": [],
+      "remediationGuidance": "Dùng bộ làm sạch văn bản tiếng Việt để xử lý khoảng trắng thừa tự động.",
+      "enabled": true
+    },
+    {
+      "ruleId": "PARA-01",
+      "ruleVersion": "1.0.0",
+      "formComponent": "mainBody",
+      "basisKind": "legalRegulation",
+      "legalCitation": "Khoản 6 Mục II Phần I Phụ lục I NĐ 30/2020/NĐ-CP",
+      "defaultObligations": {
+        "adminNd30": "mandatory",
+        "partyDocument": "mandatory",
+        "enterpriseInternal": "conditional",
+        "specializedLegal": "conditional",
+        "academicThesis": "mandatory",
+        "freeform": "notApplicable"
+      },
+      "conditionDescription": "Áp dụng cho lời văn phần nội dung chính; ngoại trừ khối Quốc hiệu, Tiêu đề căn giữa, Chữ ký và Nơi nhận.",
+      "docTypeExceptions": [],
+      "remediationGuidance": "Đặt căn đều hai bên (w:jc=both) cho các đoạn lời văn phần nội dung chính.",
+      "enabled": true
+    },
+    {
+      "ruleId": "PARA-02",
+      "ruleVersion": "1.0.0",
+      "formComponent": "mainBody",
+      "basisKind": "legalRegulation",
+      "legalCitation": "Khoản 6 Mục II Phần I Phụ lục I NĐ 30/2020/NĐ-CP",
+      "defaultObligations": {
+        "adminNd30": "mandatory",
+        "partyDocument": "mandatory",
+        "enterpriseInternal": "conditional",
+        "specializedLegal": "conditional",
+        "academicThesis": "recommended",
+        "freeform": "notApplicable"
+      },
+      "conditionDescription": "Khi xuống dòng đoạn văn mới, thụt đầu dòng từ 1.0 cm đến 1.27 cm (tùy chọn Doanh nghiệp theo Hồ sơ Tổ chức).",
+      "docTypeExceptions": [],
+      "remediationGuidance": "Đặt w:ind w:firstLine về 567 hoặc 720 twips cho các đoạn thân văn.",
+      "enabled": true
+    },
+    {
+      "ruleId": "PARA-03",
+      "ruleVersion": "1.0.0",
+      "formComponent": "mainBody",
+      "basisKind": "legalRegulation",
+      "legalCitation": "Khoản 6 Mục II Phần I Phụ lục I NĐ 30/2020/NĐ-CP",
+      "defaultObligations": {
+        "adminNd30": "mandatory",
+        "partyDocument": "mandatory",
+        "enterpriseInternal": "conditional",
+        "specializedLegal": "conditional",
+        "academicThesis": "mandatory",
+        "freeform": "notApplicable"
+      },
+      "conditionDescription": "Giãn dòng từ Single (1.0) đến 1.5 lines và khoảng cách giữa các đoạn tối thiểu 6pt.",
+      "docTypeExceptions": [],
+      "remediationGuidance": "Đặt w:spacing (before >= 120, line 240–360) đồng đều toàn văn bản.",
+      "enabled": true
+    },
+    {
+      "ruleId": "PARA-04",
+      "ruleVersion": "1.0.0",
+      "formComponent": "mainBody",
+      "basisKind": "technicalRecommendation",
+      "legalCitation": "Khuyến nghị kỹ thuật trình bày OpenXML sạch trang",
+      "defaultObligations": {
+        "adminNd30": "recommended",
+        "partyDocument": "recommended",
+        "enterpriseInternal": "recommended",
+        "specializedLegal": "recommended",
+        "academicThesis": "recommended",
+        "freeform": "recommended"
+      },
+      "conditionDescription": "Khuyến nghị không dùng Enter trống liên tiếp hay ngắt dòng mềm Shift+Enter; vẫn bảo toàn vùng trống con dấu/ký.",
+      "docTypeExceptions": [],
+      "remediationGuidance": "Thu gọn đoạn trống dư thừa và chuyển Shift+Enter sang đoạn chuẩn.",
+      "enabled": true
+    },
+    {
+      "ruleId": "PARA-05",
+      "ruleVersion": "1.0.0",
+      "formComponent": "mainBody",
+      "basisKind": "technicalRecommendation",
+      "legalCitation": "Khuyến nghị quản trị Paragraph Style OpenXML",
+      "defaultObligations": {
+        "adminNd30": "recommended",
+        "partyDocument": "recommended",
+        "enterpriseInternal": "recommended",
+        "specializedLegal": "recommended",
+        "academicThesis": "recommended",
+        "freeform": "recommended"
+      },
+      "conditionDescription": "Chỉ khuyến nghị rà soát khi đoạn gắn Style nhưng bị định dạng trực tiếp đè ngược thuộc tính.",
+      "docTypeExceptions": [],
+      "remediationGuidance": "Xác nhận đồng bộ định dạng đoạn về đúng Style hoặc giữ nguyên theo ý đồ soạn thảo.",
+      "enabled": true
+    },
+    {
+      "ruleId": "STRUCT-01",
+      "ruleVersion": "1.0.0",
+      "formComponent": "docTypeAndSubject",
+      "basisKind": "legalRegulation",
+      "legalCitation": "Khoản 5 & Khoản 6 Mục II Phần I Phụ lục I NĐ 30/2020/NĐ-CP",
+      "defaultObligations": {
+        "adminNd30": "conditional",
+        "partyDocument": "conditional",
+        "enterpriseInternal": "conditional",
+        "specializedLegal": "conditional",
+        "academicThesis": "notApplicable",
+        "freeform": "notApplicable"
+      },
+      "conditionDescription": "Áp dụng đối với văn bản có Tên loại & Trích yếu (Quyết định, Báo cáo, Tờ trình...; Công văn không ghi dòng tên loại) và văn bản có khối Căn cứ.",
+      "docTypeExceptions": ["congVan"],
+      "remediationGuidance": "Kiểm tra khối Tên loại (in hoa đậm đứng giữa), Trích yếu và Căn cứ pháp lý (in nghiêng 13–14pt).",
+      "enabled": true
+    },
+    {
+      "ruleId": "STRUCT-02",
+      "ruleVersion": "1.0.0",
+      "formComponent": "headingsAndClauses",
+      "basisKind": "legalRegulation",
+      "legalCitation": "Mục II.6 & Mục IV Phụ lục I NĐ 30/2020/NĐ-CP",
+      "defaultObligations": {
+        "adminNd30": "mandatory",
+        "partyDocument": "mandatory",
+        "enterpriseInternal": "recommended",
+        "specializedLegal": "mandatory",
+        "academicThesis": "mandatory",
+        "freeform": "recommended"
+      },
+      "conditionDescription": "Bố cục Phần, Chương, Mục, Tiểu mục, Điều và Phụ lục trình bày thống nhất, không tự ý đổi số hiệu điều khoản.",
+      "docTypeExceptions": [],
+      "remediationGuidance": "Rà soát căn chỉnh và cỡ chữ hệ thống đề mục Phần/Chương/Mục/Điều.",
+      "enabled": true
+    },
+    {
+      "ruleId": "STRUCT-03",
+      "ruleVersion": "1.0.0",
+      "formComponent": "headingsAndClauses",
+      "basisKind": "technicalRecommendation",
+      "legalCitation": "Khuyến nghị chuẩn hóa Heading Style 1–4 hỗ trợ Mục lục tự động",
+      "defaultObligations": {
+        "adminNd30": "recommended",
+        "partyDocument": "recommended",
+        "enterpriseInternal": "recommended",
+        "specializedLegal": "recommended",
+        "academicThesis": "recommended",
+        "freeform": "recommended"
+      },
+      "conditionDescription": "Khuyến nghị cho tài liệu nhiều chương/mục cần tạo Mục lục hoặc điều hướng Navigation Pane.",
+      "docTypeExceptions": [],
+      "remediationGuidance": "Gán Heading Style 1–4 màu đen chuẩn 000000 cho các đề mục cấu trúc.",
+      "enabled": true
+    },
+    {
+      "ruleId": "TBL-01",
+      "ruleVersion": "1.0.0",
+      "formComponent": "tables",
+      "basisKind": "legalRegulation",
+      "legalCitation": "Mục I.1 Phụ lục I NĐ 30/2020/NĐ-CP (Bố cục vùng in)",
+      "defaultObligations": {
+        "adminNd30": "conditional",
+        "partyDocument": "conditional",
+        "enterpriseInternal": "conditional",
+        "specializedLegal": "conditional",
+        "academicThesis": "conditional",
+        "freeform": "conditional"
+      },
+      "conditionDescription": "Áp dụng khi tài liệu có ít nhất 01 bảng dữ liệu; bảng không được tràn khỏi vùng in của Section.",
+      "docTypeExceptions": [],
+      "remediationGuidance": "Co tỷ lệ lưới cột (w:tblGrid / w:tcW) vừa vùng in hoặc xoay Section sang khổ Ngang.",
+      "enabled": true
+    },
+    {
+      "ruleId": "TBL-02",
+      "ruleVersion": "1.0.0",
+      "formComponent": "tables",
+      "basisKind": "technicalRecommendation",
+      "legalCitation": "Khuyến nghị trình bày bảng dài nhiều trang trong Microsoft Word",
+      "defaultObligations": {
+        "adminNd30": "recommended",
+        "partyDocument": "recommended",
+        "enterpriseInternal": "recommended",
+        "specializedLegal": "recommended",
+        "academicThesis": "recommended",
+        "freeform": "recommended"
+      },
+      "conditionDescription": "Áp dụng khuyến nghị khi bảng có từ 05 hàng trở lên (bật lặp tiêu đề w:tblHeader, bỏ khóa cantSplit hàng dài).",
+      "docTypeExceptions": [],
+      "remediationGuidance": "Bật w:tblHeader cho hàng đầu tiên và mở ngắt trang tự nhiên cho các hàng dài.",
+      "enabled": true
+    },
+    {
+      "ruleId": "TBL-03",
+      "ruleVersion": "1.0.0",
+      "formComponent": "tables",
+      "basisKind": "legalRegulation",
+      "legalCitation": "Mục I.3 & Bảng tổng hợp Phụ lục I NĐ 30/2020/NĐ-CP",
+      "defaultObligations": {
+        "adminNd30": "conditional",
+        "partyDocument": "conditional",
+        "enterpriseInternal": "conditional",
+        "specializedLegal": "conditional",
+        "academicThesis": "recommended",
+        "freeform": "notApplicable"
+      },
+      "conditionDescription": "Áp dụng khi văn bản có bảng dữ liệu; nội dung trong ô bảng dùng Times New Roman 11–13pt và không thụt đầu dòng thừa.",
+      "docTypeExceptions": [],
+      "remediationGuidance": "Đồng nhất phông chữ trong ô bảng dữ liệu (giữ nguyên bảng Quốc hiệu/Chữ ký).",
+      "enabled": true
+    },
+    {
+      "ruleId": "PGNUM-01",
+      "ruleVersion": "1.0.0",
+      "formComponent": "pageNumbersAndHeaderFooter",
+      "basisKind": "legalRegulation",
+      "legalCitation": "Khoản 3 Điều 9 & Mục I.4 Phụ lục I NĐ 30/2020/NĐ-CP",
+      "defaultObligations": {
+        "adminNd30": "conditional",
+        "partyDocument": "conditional",
+        "enterpriseInternal": "conditional",
+        "specializedLegal": "conditional",
+        "academicThesis": "recommended",
+        "freeform": "notApplicable"
+      },
+      "conditionDescription": "Áp dụng bắt buộc khi văn bản có từ 02 trang trở lên: chữ số Ả Rập 13–14pt, đứng, đặt giữa lề trên và không hiển thị ở trang đầu.",
+      "docTypeExceptions": [],
+      "remediationGuidance": "Cấu hình w:titlePg và Header giữa trên chứa trường động PAGE cỡ 13pt.",
+      "enabled": true
+    },
+    {
+      "ruleId": "PGNUM-02",
+      "ruleVersion": "1.0.0",
+      "formComponent": "pageNumbersAndHeaderFooter",
+      "basisKind": "technicalRecommendation",
+      "legalCitation": "Khuyến nghị bảo toàn Header/Footer & trường động OpenXML",
+      "defaultObligations": {
+        "adminNd30": "recommended",
+        "partyDocument": "recommended",
+        "enterpriseInternal": "recommended",
+        "specializedLegal": "recommended",
+        "academicThesis": "recommended",
+        "freeform": "recommended"
+      },
+      "conditionDescription": "Kiểm tra số trang gõ tĩnh gây sai lệch phân trang và bảo toàn các phần header*.xml / footer*.xml.",
+      "docTypeExceptions": [],
+      "remediationGuidance": "Thay số trang gõ tay bằng trường động PAGE / NUMPAGES trong Word.",
+      "enabled": true
+    },
+    {
+      "ruleId": "CAP-01",
+      "ruleVersion": "1.0.0",
+      "formComponent": "signatureAndRecipients",
+      "basisKind": "legalRegulation",
+      "legalCitation": "Phụ lục II NĐ 30/2020/NĐ-CP (Viết hoa trong văn bản hành chính)",
+      "defaultObligations": {
+        "adminNd30": "mandatory",
+        "partyDocument": "mandatory",
+        "enterpriseInternal": "conditional",
+        "specializedLegal": "mandatory",
+        "academicThesis": "notApplicable",
+        "freeform": "notApplicable"
+      },
+      "conditionDescription": "Kiểm tra viết hoa Quốc hiệu, Tên loại, quyền hạn ký (TM., KT., TL., TUQ., Q.) và Nơi nhận.",
+      "docTypeExceptions": [],
+      "remediationGuidance": "Rà soát thủ công các cụm viết hoa sai chuẩn theo Phụ lục II (hệ thống không tự đổi tên/chức danh người ký).",
+      "enabled": true
+    },
+    {
+      "ruleId": "CAP-02",
+      "ruleVersion": "1.0.0",
+      "formComponent": "mainBody",
+      "basisKind": "technicalRecommendation",
+      "legalCitation": "Mục II, III, IV Phụ lục II NĐ 30/2020/NĐ-CP (Cảnh báo rà soát nhất quán)",
+      "defaultObligations": {
+        "adminNd30": "recommended",
+        "partyDocument": "recommended",
+        "enterpriseInternal": "recommended",
+        "specializedLegal": "recommended",
+        "academicThesis": "recommended",
+        "freeform": "notApplicable"
+      },
+      "conditionDescription": "Phát hiện cách viết hoa không đồng nhất cùng một danh từ riêng / cơ quan giữa các đoạn.",
+      "docTypeExceptions": [],
+      "remediationGuidance": "Người dùng kiểm tra và thống nhất cách viết hoa các danh từ riêng theo ngữ cảnh.",
+      "enabled": true
+    },
+    {
+      "ruleId": "ABBR-01",
+      "ruleVersion": "1.0.0",
+      "formComponent": "docTypeAndSubject",
+      "basisKind": "legalRegulation",
+      "legalCitation": "Phụ lục III NĐ 30/2020/NĐ-CP (27 chữ viết tắt tên loại văn bản)",
+      "defaultObligations": {
+        "adminNd30": "conditional",
+        "partyDocument": "conditional",
+        "enterpriseInternal": "conditional",
+        "specializedLegal": "conditional",
+        "academicThesis": "notApplicable",
+        "freeform": "notApplicable"
+      },
+      "conditionDescription": "Áp dụng khi dòng Số và ký hiệu có mã loại văn bản (trừ Công văn không viết tắt tên loại; phân biệt đúng QĐ / QyĐ / ĐA / DA).",
+      "docTypeExceptions": ["congVan"],
+      "remediationGuidance": "Đối chiếu bảng 27 chữ viết tắt tên loại chuẩn tại Phụ lục III NĐ 30/2020/NĐ-CP.",
+      "enabled": true
+    },
+    {
+      "ruleId": "PRESERVE-01",
+      "ruleVersion": "1.0.0",
+      "formComponent": "openxmlIntegrity",
+      "basisKind": "technicalRecommendation",
+      "legalCitation": "Tiêu chuẩn toàn vẹn cấu trúc gói OpenXML (ECMA-376)",
+      "defaultObligations": {
+        "adminNd30": "mandatory",
+        "partyDocument": "mandatory",
+        "enterpriseInternal": "mandatory",
+        "specializedLegal": "mandatory",
+        "academicThesis": "mandatory",
+        "freeform": "mandatory"
+      },
+      "conditionDescription": "Kiểm tra tính toàn vẹn quan hệ .rels, media, hyperlink, bookmark, chú thích và macro.",
+      "docTypeExceptions": [],
+      "remediationGuidance": "Khắc phục rId gãy liên kết trên tệp gốc trước khi thực hiện xuất bản hoặc lưu trữ.",
+      "enabled": true
+    }
+  ]
+}

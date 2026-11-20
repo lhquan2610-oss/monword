@@ -1,14 +1,21 @@
 use crate::engine::formatter;
 use crate::engine::openxml_arch::OpenXmlPackage;
+use crate::engine::reliability::error_code::{AppErrorCode, AppStructuredError};
+use crate::engine::reliability::logger::OpTimer;
+use crate::engine::reliability::resource_guard;
 use crate::models::{AddinItem, FormatConfig, ManageAddinRequest, SystemStatus, SystemTweaksRequest};
 use std::env;
 use std::fs;
+use std::io::Read;
 use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, Instant};
 use windows_registry::CURRENT_USER;
 
 const CREATE_NO_WINDOW: u32 = 0x08000000;
+static COM_SEQ_COUNTER: AtomicU64 = AtomicU64::new(1);
 
 fn detect_office_version() -> Option<String> {
     for ver in ["16.0", "15.0", "14.0"] {
@@ -381,32 +388,62 @@ pub fn install_user_fonts(font_paths: &[String]) -> Result<Vec<String>, String> 
 /// Optional Word COM Background Worker:
 /// - Converts legacy `.doc` -> `.docx`
 /// - Updates TOC/Fields and exports `.pdf` when requested
+/// Protected by strict timeout, cancellation, and DCOM orphan `WINWORD.EXE` cleanup.
 pub fn word_com_convert_doc_to_docx(src_doc: &Path, dest_docx: &Path) -> Result<(), String> {
+    let timer = OpTimer::start("system_office", "word_com_convert_doc_to_docx", Some(src_doc));
+    if let Err(e) = crate::engine::openxml_arch::inspect_ole_cfb_file(src_doc, false) {
+        let code = crate::engine::reliability::error_code::classify_error_message(
+            &e,
+            AppErrorCode::ErrFileLockedOrConflict,
+        )
+        .code
+        .as_str();
+        timer.finish_err(code, &e);
+        return Err(e);
+    }
     let src_escaped = ps_escape(&src_doc.to_string_lossy());
     let dest_escaped = ps_escape(&dest_docx.to_string_lossy());
 
-    let script = format!(
+    let inner_body = format!(
         r#"
-$ErrorActionPreference = 'Stop'
-$word = $null
-$doc = $null
-try {{
-    $word = New-Object -ComObject Word.Application
-    $word.Visible = $false
-    $word.DisplayAlerts = 0
     $doc = $word.Documents.Open('{src}', $false, $true)
     $doc.SaveAs2('{dest}', 16)
-}} finally {{
-    if ($doc -ne $null) {{ $doc.Close($false); [System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($doc) | Out-Null }}
-    if ($word -ne $null) {{ $word.Quit(); [System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($word) | Out-Null }}
-    [GC]::Collect(); [GC]::WaitForPendingFinalizers()
-}}
 "#,
         src = src_escaped,
         dest = dest_escaped
     );
 
-    run_hidden_powershell(&script)
+    let timeout_ms = resource_guard::current_limits().word_com_timeout_ms;
+    match run_word_com_script_with_timeout(&inner_body, timeout_ms, Some(&resource_guard::is_batch_cancelled)) {
+        Ok(_) => {
+            if !dest_docx.is_file() || fs::metadata(dest_docx).map(|m| m.len()).unwrap_or(0) == 0 {
+                let err_msg = AppStructuredError::new(
+                    AppErrorCode::ErrDocConvert,
+                    "Word COM không tạo được tệp .docx hợp lệ sau chuyển đổi.",
+                )
+                .format_user_message();
+                timer.finish_err("ERR_DOC_CONVERT", &err_msg);
+                return Err(err_msg);
+            }
+            timer.finish_ok("Chuyển đổi .doc -> .docx qua Word COM thành công");
+            Ok(())
+        }
+        Err(e) => {
+            let code = crate::engine::reliability::error_code::classify_error_message(
+                &e,
+                AppErrorCode::ErrDocConvert,
+            )
+            .code
+            .as_str();
+            let structured = if code == "ERR_COM_TIMEOUT" || code == "ERR_TASK_CANCELLED" {
+                e
+            } else {
+                AppStructuredError::new(AppErrorCode::ErrDocConvert, e).format_user_message()
+            };
+            timer.finish_err(code, &structured);
+            Err(structured)
+        }
+    }
 }
 
 pub fn word_com_refresh_and_export_pdf(
@@ -417,6 +454,7 @@ pub fn word_com_refresh_and_export_pdf(
     if !update_toc && pdf_dest.is_none() {
         return Ok(());
     }
+    let timer = OpTimer::start("system_office", "word_com_refresh_export", Some(docx_path));
     let src_escaped = ps_escape(&docx_path.to_string_lossy());
     let update_block = if update_toc {
         "$doc.Fields.Update() | Out-Null; foreach ($t in $doc.TablesOfContents) { $t.Update() }; $doc.Save()"
@@ -432,46 +470,249 @@ pub fn word_com_refresh_and_export_pdf(
         String::new()
     };
 
-    let script = format!(
+    let inner_body = format!(
         r#"
-$ErrorActionPreference = 'Stop'
-$word = $null
-$doc = $null
-try {{
-    $word = New-Object -ComObject Word.Application
-    $word.Visible = $false
-    $word.DisplayAlerts = 0
     $doc = $word.Documents.Open('{src}')
     {update_block}
     {pdf_block}
-}} finally {{
-    if ($doc -ne $null) {{ $doc.Close($false); [System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($doc) | Out-Null }}
-    if ($word -ne $null) {{ $word.Quit(); [System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($word) | Out-Null }}
-    [GC]::Collect(); [GC]::WaitForPendingFinalizers()
-}}
 "#,
         src = src_escaped,
         update_block = update_block,
         pdf_block = pdf_block
     );
 
-    run_hidden_powershell(&script)
+    let timeout_ms = resource_guard::current_limits().word_com_timeout_ms;
+    match run_word_com_script_with_timeout(&inner_body, timeout_ms, Some(&resource_guard::is_batch_cancelled)) {
+        Ok(_) => {
+            if let Some(pdf) = pdf_dest {
+                if !pdf.is_file() || fs::metadata(pdf).map(|m| m.len()).unwrap_or(0) < 100 {
+                    let msg = AppStructuredError::new(
+                        AppErrorCode::ErrDocConvert,
+                        "Word COM kết thúc nhưng không tạo ra tệp PDF đầu ra hợp lệ.",
+                    )
+                    .format_user_message();
+                    timer.finish_err("ERR_DOC_CONVERT", &msg);
+                    return Err(msg);
+                }
+            }
+            timer.finish_ok("Cập nhật mục lục / xuất PDF qua Word COM thành công");
+            Ok(())
+        }
+        Err(e) => {
+            let code = crate::engine::reliability::error_code::classify_error_message(
+                &e,
+                AppErrorCode::ErrDocConvert,
+            )
+            .code
+            .as_str();
+            let structured = if code == "ERR_COM_TIMEOUT" || code == "ERR_TASK_CANCELLED" {
+                e
+            } else {
+                AppStructuredError::new(
+                    if pdf_dest.is_some() {
+                        AppErrorCode::ErrDocConvert
+                    } else {
+                        AppErrorCode::ErrWordCom
+                    },
+                    e,
+                )
+                .format_user_message()
+            };
+            timer.finish_err(code, &structured);
+            Err(structured)
+        }
+    }
+}
+
+pub fn run_word_com_script_with_timeout(
+    try_body: &str,
+    timeout_ms: u64,
+    cancel_check: Option<&dyn Fn() -> bool>,
+) -> Result<std::process::Output, String> {
+    let seq = COM_SEQ_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let pid_marker = env::temp_dir().join(format!(
+        "monword_com_pid_{}_{}.txt",
+        std::process::id(),
+        seq
+    ));
+    let _ = fs::remove_file(&pid_marker);
+    let marker_esc = ps_escape(&pid_marker.to_string_lossy());
+
+    let wrapped_script = format!(
+        r#"
+$ErrorActionPreference = 'Stop'
+$word = $null
+$doc = $null
+try {{
+    $beforeWinWord = @(Get-Process WINWORD -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id)
+    $word = New-Object -ComObject Word.Application
+    $afterWinWord = @(Get-Process WINWORD -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id)
+    $newPids = @($afterWinWord | Where-Object {{ $beforeWinWord -notcontains $_ }})
+    if ($newPids.Count -gt 0) {{
+        [System.IO.File]::WriteAllText('{marker}', ($newPids -join ','))
+    }}
+    $word.Visible = $false
+    $word.DisplayAlerts = 0
+    $word.AutomationSecurity = 3
+    {body}
+}} finally {{
+    if ($doc -ne $null) {{ try {{ $doc.Close($false) }} catch {{}}; [System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($doc) | Out-Null }}
+    if ($word -ne $null) {{ try {{ $word.Quit() }} catch {{}}; [System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($word) | Out-Null }}
+    [GC]::Collect(); [GC]::WaitForPendingFinalizers()
+}}
+"#,
+        marker = marker_esc,
+        body = try_body
+    );
+
+    let res = run_hidden_powershell_with_timeout(
+        &wrapped_script,
+        timeout_ms,
+        cancel_check,
+        Some(&pid_marker),
+    );
+    let _ = fs::remove_file(&pid_marker);
+    res
+}
+
+pub fn run_hidden_powershell_with_timeout(
+    script: &str,
+    timeout_ms: u64,
+    cancel_check: Option<&dyn Fn() -> bool>,
+    pid_marker: Option<&Path>,
+) -> Result<std::process::Output, String> {
+    let mut child = Command::new("powershell.exe")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            script,
+        ])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .creation_flags(CREATE_NO_WINDOW)
+        .spawn()
+        .map_err(|e| {
+            AppStructuredError::new(
+                AppErrorCode::ErrWordCom,
+                format!("Không thể khởi chạy tiến trình PowerShell / COM Worker: {}", e),
+            )
+            .format_user_message()
+        })?;
+
+    let child_pid = child.id();
+    let stdout_handle = child.stdout.take().map(|mut pipe| {
+        std::thread::spawn(move || {
+            let mut buf = Vec::new();
+            let _ = pipe.read_to_end(&mut buf);
+            buf
+        })
+    });
+    let stderr_handle = child.stderr.take().map(|mut pipe| {
+        std::thread::spawn(move || {
+            let mut buf = Vec::new();
+            let _ = pipe.read_to_end(&mut buf);
+            buf
+        })
+    });
+
+    let started = Instant::now();
+    let effective_timeout = timeout_ms.max(150);
+
+    loop {
+        let cancelled = cancel_check.map(|f| f()).unwrap_or(false);
+        if cancelled {
+            let _ = child.kill();
+            kill_powershell_and_com_pids(child_pid, pid_marker);
+            let _ = child.wait();
+            return Err(AppStructuredError::new(
+                AppErrorCode::ErrTaskCancelled,
+                "Tác vụ Microsoft Word COM đã được hủy và dọn sạch tiến trình con.",
+            )
+            .format_user_message());
+        }
+
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                let stdout = stdout_handle
+                    .and_then(|h| h.join().ok())
+                    .unwrap_or_default();
+                let stderr = stderr_handle
+                    .and_then(|h| h.join().ok())
+                    .unwrap_or_default();
+                if !status.success() {
+                    let err_txt = String::from_utf8_lossy(&stderr).trim().to_string();
+                    return Err(AppStructuredError::new(
+                        AppErrorCode::ErrWordCom,
+                        format!(
+                            "Word COM Worker trả lỗi: {}",
+                            if err_txt.is_empty() {
+                                "Exit code khác 0".to_string()
+                            } else {
+                                err_txt
+                            }
+                        ),
+                    )
+                    .format_user_message());
+                }
+                return Ok(std::process::Output {
+                    status,
+                    stdout,
+                    stderr,
+                });
+            }
+            Ok(None) => {
+                if (started.elapsed().as_millis() as u64) >= effective_timeout {
+                    let _ = child.kill();
+                    kill_powershell_and_com_pids(child_pid, pid_marker);
+                    let _ = child.wait();
+                    return Err(AppStructuredError::new(
+                        AppErrorCode::ErrComTimeout,
+                        format!(
+                            "Tiến trình Microsoft Word COM vượt thời gian tối đa {} ms và đã bị buộc dừng để tránh treo ứng dụng.",
+                            effective_timeout
+                        ),
+                    )
+                    .format_user_message());
+                }
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            Err(e) => {
+                let _ = child.kill();
+                kill_powershell_and_com_pids(child_pid, pid_marker);
+                let _ = child.wait();
+                return Err(AppStructuredError::new(
+                    AppErrorCode::ErrWordCom,
+                    format!("Lỗi theo dõi tiến trình Word COM: {}", e),
+                )
+                .format_user_message());
+            }
+        }
+    }
+}
+
+fn kill_powershell_and_com_pids(powershell_pid: u32, pid_marker: Option<&Path>) {
+    let _ = Command::new("taskkill")
+        .args(["/F", "/T", "/PID", &powershell_pid.to_string()])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output();
+
+    if let Some(marker) = pid_marker {
+        if let Ok(raw) = fs::read_to_string(marker) {
+            for pid_str in raw.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+                if pid_str.chars().all(|c| c.is_ascii_digit()) {
+                    let _ = Command::new("taskkill")
+                        .args(["/F", "/PID", pid_str])
+                        .creation_flags(CREATE_NO_WINDOW)
+                        .output();
+                }
+            }
+        }
+    }
 }
 
 fn ps_escape(s: &str) -> String {
     s.replace('\'', "''")
-}
-
-fn run_hidden_powershell(script: &str) -> Result<(), String> {
-    let output = Command::new("powershell.exe")
-        .args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script])
-        .creation_flags(CREATE_NO_WINDOW)
-        .output()
-        .map_err(|e| format!("Không thể khởi chạy Word COM Worker: {}", e))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Word COM Worker lỗi: {}", stderr.trim()));
-    }
-    Ok(())
 }

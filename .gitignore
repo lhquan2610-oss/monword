@@ -7,8 +7,9 @@ ui/node_modules/
 ui/dist/
 ui/tsconfig.tsbuildinfo
 
-# Portable WebView2 runtime & binaries
+# Portable WebView2 runtime & release installers
 /dist-portable/
+/dist-release/
 *.b64
 .chuanhoa_backup/
 *_chuanhoa.docx

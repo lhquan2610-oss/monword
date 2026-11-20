@@ -23,10 +23,25 @@ export function detectPlatformSnapshot(override: UILayoutOverride = 'auto'): Pla
   const isMobileUA = /Android|iPhone|iPad|iPod/i.test(ua);
   const isMobileHardware = isAndroidApk || isMobileUA || width < 768;
 
+  const urlEdition = (() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const param = new URLSearchParams(window.location.search).get('edition');
+      if (param === 'win' || param === 'web' || param === 'mobile') {
+        return param;
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  })();
+
   let edition: PlatformEdition = 'web';
   if (override !== 'auto') {
     edition = override;
-  } else if (isNativeWin && width >= 640) {
+  } else if (urlEdition) {
+    edition = urlEdition;
+  } else if (isNativeWin) {
     edition = 'win';
   } else if (isMobileHardware || width < 768) {
     edition = 'mobile';

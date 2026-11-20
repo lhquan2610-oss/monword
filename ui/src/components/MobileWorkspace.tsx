@@ -1,7 +1,6 @@
+import { Toast } from './Toast';
 import React, { useState } from 'react';
 import {
-  AlertTriangle,
-  CheckCircle2,
   Download,
   FileText,
   FolderOpen,
@@ -13,7 +12,6 @@ import {
   Settings2,
   Share2,
   SlidersHorizontal,
-  Sparkles,
   Trash2,
   Zap,
 } from 'lucide-react';
@@ -32,6 +30,8 @@ import type {
 } from '../types';
 import { ConfigPanels, type ConfigPanelsProps } from './ConfigPanels';
 import { PlatformSwitcher, VersionOtaPill } from './PlatformSwitcher';
+import { WorkspaceHome } from './WorkspaceHome';
+import { WorkspaceNavigation } from './WorkspaceNavigation';
 
 type MobileTab = 'home' | 'files' | 'rules' | 'ota';
 
@@ -95,7 +95,7 @@ export const MobileWorkspace: React.FC<MobileWorkspaceProps> = ({
   const [mobileTab, setMobileTab] = useState<MobileTab>('home');
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-20">
+    <div className="min-h-screen flex flex-col mw-canvas pb-20">
       {/* Sticky Safe-Area Mobile Header */}
       <header className="sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 px-3.5 py-2.5 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
@@ -131,55 +131,25 @@ export const MobileWorkspace: React.FC<MobileWorkspaceProps> = ({
 
       {/* Main Content */}
       <main className="flex-1 p-3.5 space-y-3.5 max-w-xl w-full mx-auto">
-        {toast && (
-          <div
-            className={`px-3.5 py-2.5 rounded-xl border text-xs font-semibold flex items-center gap-2 shadow-sm ${
-              toast.type === 'ok'
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/70 dark:border-emerald-800 dark:text-emerald-200'
-                : 'bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-950/70 dark:border-rose-800 dark:text-rose-200'
-            }`}
-          >
-            {toast.type === 'ok' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertTriangle className="w-4 h-4 shrink-0" />}
-            <span>{toast.text}</span>
-          </div>
-        )}
+        {toast && <Toast {...toast} />}
 
         {/* TAB HOME */}
         {mobileTab === 'home' && (
           <>
-            {/* Quick Upload Card */}
-            <div className="rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white p-4 shadow-md space-y-3">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="text-xs font-semibold text-blue-100">Hệ sinh thái Mon · Cục bộ 100%</div>
-                  <h1 className="text-base font-extrabold mt-0.5">Chuẩn hóa nhanh .docx từ Zalo / Điện thoại</h1>
-                </div>
-                <Sparkles className="w-5 h-5 text-amber-300 shrink-0" />
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    onPickFiles();
-                    setMobileTab('files');
-                  }}
-                  className="flex-1 py-2.5 px-3 rounded-xl bg-white text-blue-700 font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 active:scale-[0.98]"
-                >
-                  <FolderOpen className="w-4 h-4" />
-                  Chọn tệp Word
-                </button>
-                <button
-                  type="button"
-                  disabled={busy || files.length === 0}
-                  onClick={onProcessFiles}
-                  className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50 active:scale-[0.98]"
-                >
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  Chuẩn hóa ({files.length})
-                </button>
-              </div>
-            </div>
+            <WorkspaceHome
+              files={files}
+              onPickFiles={() => {
+                onPickFiles();
+                setMobileTab('files');
+              }}
+              onTask={(tab) => {
+                setActiveConfigTab(tab);
+                setMobileTab('rules');
+              }}
+              onShowFiles={() => setMobileTab('files')}
+              progress={busy ? progress : null}
+              mobile
+            />
 
             {/* Quick 2x2 Presets Grid */}
             <div className="space-y-2">
@@ -232,7 +202,7 @@ export const MobileWorkspace: React.FC<MobileWorkspaceProps> = ({
               <button
                 type="button"
                 onClick={onPickFiles}
-                className="px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold"
+                className="mw-button mw-button-secondary"
               >
                 + Thêm tệp .docx
               </button>
@@ -292,7 +262,7 @@ export const MobileWorkspace: React.FC<MobileWorkspaceProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => onDownloadOutput(res.blobUrl!, res.outputName || res.outputPath)}
-                                    className="flex-1 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold flex items-center justify-center gap-1"
+                                    className="mw-button mw-button-primary min-h-11 flex-1"
                                   >
                                     <Download className="w-3.5 h-3.5" /> Tải về
                                   </button>
@@ -334,7 +304,7 @@ export const MobileWorkspace: React.FC<MobileWorkspaceProps> = ({
                   type="button"
                   disabled={busy}
                   onClick={onProcessFiles}
-                  className="flex-[1.4] py-2.5 rounded-xl bg-blue-600 text-white text-xs font-bold flex items-center justify-center gap-1.5"
+                  className="mw-button mw-button-primary min-h-11 flex-[1.4]"
                 >
                   <Play className="w-3.5 h-3.5 fill-current" />
                   Chuẩn hóa ngay
@@ -347,30 +317,12 @@ export const MobileWorkspace: React.FC<MobileWorkspaceProps> = ({
         {/* TAB RULES */}
         {mobileTab === 'rules' && (
           <div className="space-y-3">
-            <div className="flex gap-1.5 overflow-x-auto pb-1">
-              {(
-                [
-                  ['oneClick', '1-Click'],
-                  ['format', 'Thể thức'],
-                  ['cleaner', 'Tiếng Việt'],
-                  ['security', 'Bảo mật'],
-                ] as [NavTab, string][]
-              ).map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setActiveConfigTab(id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold border whitespace-nowrap ${
-                    activeConfigTab === id
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <ConfigPanels {...configPanelsProps} activeTab={activeConfigTab} />
+            <WorkspaceNavigation
+              activeTab={activeConfigTab === 'home' ? 'oneClick' : activeConfigTab}
+              onSelect={setActiveConfigTab}
+              hideHome
+            />
+            <ConfigPanels {...configPanelsProps} activeTab={activeConfigTab === 'home' ? 'oneClick' : activeConfigTab} />
           </div>
         )}
 
@@ -392,7 +344,7 @@ export const MobileWorkspace: React.FC<MobileWorkspaceProps> = ({
               <button
                 type="button"
                 onClick={onOpenUpdate}
-                className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-xs font-bold"
+                className="mw-button mw-button-primary min-h-11 w-full"
               >
                 Mở Trung tâm Live OTA
               </button>
@@ -413,12 +365,12 @@ export const MobileWorkspace: React.FC<MobileWorkspaceProps> = ({
       </main>
 
       {/* Fixed Bottom Navigation Dock */}
-      <nav className="fixed bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200 dark:border-slate-800 px-2 py-1.5 grid grid-cols-4 gap-1">
+      <nav aria-label="Điều hướng chính trên điện thoại" className="fixed bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200 dark:border-slate-800 px-2 py-1.5 grid grid-cols-4 gap-1">
         {(
           [
             ['home', 'Trang chủ', <Home key="h" className="w-4 h-4" />],
             ['files', `Tài liệu${files.length > 0 ? ` (${files.length})` : ''}`, <FolderOpen key="f" className="w-4 h-4" />],
-            ['rules', 'Quy chuẩn', <SlidersHorizontal key="r" className="w-4 h-4" />],
+            ['rules', 'Công cụ', <SlidersHorizontal key="r" className="w-4 h-4" />],
             ['ota', 'Live OTA', <RefreshCw key="o" className="w-4 h-4" />],
           ] as [MobileTab, string, React.ReactNode][]
         ).map(([id, label, icon]) => {
@@ -427,6 +379,7 @@ export const MobileWorkspace: React.FC<MobileWorkspaceProps> = ({
             <button
               key={id}
               type="button"
+              aria-current={active ? 'page' : undefined}
               onClick={() => setMobileTab(id)}
               className={`flex flex-col items-center justify-center py-1.5 rounded-xl text-[11px] font-semibold transition-colors ${
                 active ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40' : 'text-slate-500 dark:text-slate-400'

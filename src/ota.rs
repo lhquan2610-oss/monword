@@ -11,7 +11,7 @@ use tao::event_loop::EventLoopProxy;
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 pub const EMBEDDED_APP_VERSION: &str = env!("CARGO_PKG_VERSION");
-pub const APP_CODENAME: &str = "MonWord Multi-Platform LiveOTA";
+pub const APP_CODENAME: &str = "MonWord 4.0 Enterprise";
 pub const LIVE_OTA_ORIGIN: &str = "https://monword.vercel.app";
 pub const GITHUB_RAW_VERSION_URL: &str =
     "https://raw.githubusercontent.com/lequan2512/monword/main/ui/public/version.json";
@@ -123,6 +123,8 @@ pub fn get_app_info() -> Value {
     let ota_ver = get_active_ota_version();
     json!({
         "name": "MonWord",
+        "publisher": "Hệ sinh thái Văn phòng Mon (Mon Office Ecosystem)",
+        "arch": "Windows x64",
         "codename": APP_CODENAME,
         "embeddedVersion": EMBEDDED_APP_VERSION,
         "effectiveVersion": effective_version(),

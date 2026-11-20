@@ -95,8 +95,8 @@ export const VersionOtaPill: React.FC<VersionPillProps> = ({
       onClick={onOpenUpdate}
       title={
         hasNewUpdate
-          ? `Có bản cập nhật mới v${updateInfo?.latestVersion}! Nhấp để cập nhật Live OTA`
-          : `MonWord v${currentVersion} (${editionLabel || 'Live OTA sẵn sàng'}) · Nhấp để kiểm tra cập nhật`
+          ? `Có bản cập nhật mới v${updateInfo?.latestVersion}! Nhấp để cập nhật`
+          : `Phiên bản MonWord v${currentVersion}${editionLabel ? ` (${editionLabel})` : ''} · Nhấp để kiểm tra cập nhật`
       }
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border transition-all cursor-pointer ${
         hasNewUpdate
@@ -109,8 +109,8 @@ export const VersionOtaPill: React.FC<VersionPillProps> = ({
       <RefreshCw className={`w-2.5 h-2.5 ${hasNewUpdate ? 'text-emerald-600 dark:text-emerald-400' : ''}`} />
       <span>
         {hasNewUpdate
-          ? `Cập nhật v${updateInfo?.latestVersion}`
-          : `v${currentVersion}${otaActive ? ' · Live OTA' : ''}`}
+          ? `Có bản mới v${updateInfo?.latestVersion}`
+          : `Phiên bản v${currentVersion}`}
       </span>
     </button>
   );

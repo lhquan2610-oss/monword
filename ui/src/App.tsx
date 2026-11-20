@@ -1,35 +1,34 @@
+import { Toast } from './components/Toast';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AlertTriangle,
-  BookOpen,
-  CheckCircle2,
   FileOutput,
   FileText,
   Info,
-  Layout,
   Lock,
   Play,
   RefreshCw,
   SearchCheck,
-  Shield,
-  Sparkles,
   Sun,
   Moon,
-  Type,
-  Wrench,
-  Zap,
 } from 'lucide-react';
 import { bridge } from './bridge';
-import { A4LivePreview } from './components/A4LivePreview';
 import { AboutDialog } from './components/AboutDialog';
 import { AuditModal } from './components/AuditModal';
+import { ComplianceAuditWorkspace } from './components/ComplianceAuditWorkspace';
 import { ConfigPanels, type ConfigPanelsProps } from './components/ConfigPanels';
 import { FileQueuePanel } from './components/FileQueuePanel';
+import { HeaderBuilderWorkspace } from './components/HeaderBuilderWorkspace';
+import { LayoutIntelligenceWorkspace } from './components/LayoutIntelligenceWorkspace';
+import { LivePreviewWorkspace, type LivePreviewFocusTarget } from './components/LivePreviewWorkspace';
 import { MobileWorkspace } from './components/MobileWorkspace';
-import { PlatformSwitcher, VersionOtaPill } from './components/PlatformSwitcher';
+import { VersionOtaPill } from './components/PlatformSwitcher';
+import { StandardizationWorkspace } from './components/StandardizationWorkspace';
 import { StatusBar } from './components/StatusBar';
+import { TemplateWorkspace } from './components/TemplateWorkspace';
 import { UpdateDialog } from './components/UpdateDialog';
 import { WebWorkspace } from './components/WebWorkspace';
+import { WorkspaceHome } from './components/WorkspaceHome';
+import { WorkspaceNavigation } from './components/WorkspaceNavigation';
 import {
   type AddinItem,
   type AppInfoPayload,
@@ -39,10 +38,12 @@ import {
   type FileProcessResult,
   type FileQueueItem,
   type NavTab,
+  type OperationLogEntry,
   type PresetId,
   type PresetInfo,
   type ProcessConfig,
   type ProgressPayload,
+  type RecentDocEntry,
   type SystemStatus,
   type SystemTweaksRequest,
   type UpdateCheckResult,
@@ -63,24 +64,90 @@ import {
   triggerBrowserDownload,
 } from './utils/webDocxEngine';
 
+const RECENT_DOCS_STORAGE_KEY = 'monword_recent_docs_v1';
+
+const VALID_TABS: ReadonlySet<string> = new Set<NavTab>([
+  'home',
+  'oneClick',
+  'standardizer',
+  'complianceAudit',
+  'livePreview',
+  'layoutIntelligence',
+  'templateEngine',
+  'headerBuilder',
+  'format',
+  'pageToc',
+  'cleaner',
+  'security',
+  'system',
+  'history',
+  'advancedSettings',
+]);
+
+function getInitialTab(): NavTab {
+  if (typeof window === 'undefined') return 'home';
+  try {
+    const param = new URLSearchParams(window.location.search).get('tab');
+    if (param && VALID_TABS.has(param)) {
+      return param as NavTab;
+    }
+  } catch {
+    // ignore
+  }
+  return 'home';
+}
+
+function loadInitialRecentDocs(): RecentDocEntry[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(RECENT_DOCS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as RecentDocEntry[]).slice(0, 20) : [];
+  } catch {
+    return [];
+  }
+}
+
+function upsertRecentDocs(prev: RecentDocEntry[], updates: RecentDocEntry[]): RecentDocEntry[] {
+  const map = new Map<string, RecentDocEntry>();
+  for (const item of prev) {
+    map.set(item.path.toLowerCase(), item);
+  }
+  for (const next of updates) {
+    const key = next.path.toLowerCase();
+    const existing = map.get(key);
+    map.set(key, {
+      ...existing,
+      ...next,
+      outputPath: next.outputPath ?? existing?.outputPath,
+      backupPath: next.backupPath ?? existing?.backupPath ?? null,
+    });
+  }
+  return Array.from(map.values())
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    .slice(0, 20);
+}
+
 export function App() {
   const { edition, override, setOverride, isNativeWin, label: editionLabel } = usePlatformEdition();
 
   const [darkMode, setDarkMode] = useState(false);
-  const [activeTab, setActiveTab] = useState<NavTab>('oneClick');
+  const [activeTab, setActiveTab] = useState<NavTab>(() => getInitialTab());
   const [presets, setPresets] = useState<PresetInfo[]>(DEFAULT_PRESETS_FALLBACK);
   const [config, setConfig] = useState<ProcessConfig>(DEFAULT_ND30_CONFIG);
 
   const [files, setFiles] = useState<FileQueueItem[]>([]);
   const [audits, setAudits] = useState<Record<string, AuditReport>>({});
   const [results, setResults] = useState<Record<string, FileProcessResult>>({});
+  const [recentDocs, setRecentDocs] = useState<RecentDocEntry[]>(() => loadInitialRecentDocs());
   const [selectedAudit, setSelectedAudit] = useState<AuditReport | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<ProgressPayload | null>(null);
   const [activityLogs, setActivityLogs] = useState<string[]>([
-    'Sẵn sàng xử lý văn bản (MonWord v1.0.0 · OpenXML + Live OTA).',
+    'Sẵn sàng xử lý văn bản (MonWord v4.0.0 · OpenXML + Live OTA).',
   ]);
   const [toast, setToast] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
@@ -96,6 +163,8 @@ export function App() {
   const [addinApp, setAddinApp] = useState<'word' | 'excel'>('word');
   const [addins, setAddins] = useState<AddinItem[]>([]);
   const [loadingSystem, setLoadingSystem] = useState(false);
+  const [operationLogs, setOperationLogs] = useState<OperationLogEntry[]>([]);
+  const [previewFocusTarget, setPreviewFocusTarget] = useState<LivePreviewFocusTarget | null>(null);
 
   const webFileInputRef = useRef<HTMLInputElement | null>(null);
   const busyRef = useRef(false);
@@ -106,6 +175,14 @@ export function App() {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(RECENT_DOCS_STORAGE_KEY, JSON.stringify(recentDocs));
+    } catch {
+      // ignore storage quota
+    }
+  }, [recentDocs]);
 
   useEffect(() => {
     if (!toast) return;
@@ -119,6 +196,22 @@ export function App() {
   }, []);
 
   const mergeFilesToQueue = useCallback((incoming: FileQueueItem[]) => {
+    if (incoming.length > 0) {
+      setActiveTab((tab) => (tab === 'home' ? 'standardizer' : tab));
+      const now = new Date().toISOString();
+      setRecentDocs((prev) =>
+        upsertRecentDocs(
+          prev,
+          incoming.map((f) => ({
+            path: f.path,
+            name: f.name,
+            ext: f.ext,
+            updatedAt: now,
+            status: 'selected',
+          })),
+        ),
+      );
+    }
     setFiles((prev) => {
       const map = new Map<string, FileQueueItem>();
       for (const f of prev) map.set(f.path.toLowerCase(), f);
@@ -343,13 +436,51 @@ export function App() {
       } else {
         for (let i = 0; i < files.length; i++) {
           setProgress({ phase: 'audit', current: i + 1, total: files.length, file: files[i].name });
-          reports.push(await auditWebDocxFile(files[i]));
+          try {
+            reports.push(await auditWebDocxFile(files[i]));
+          } catch (fileErr) {
+            if (files.length <= 1) throw fileErr;
+            reports.push({
+              filePath: files[i].path,
+              fileName: files[i].name,
+              fileType: files[i].ext.toUpperCase(),
+              score: 0,
+              sectionCount: 0,
+              tableCount: 0,
+              paragraphCount: 0,
+              hasMacros: false,
+              isProtected: false,
+              hasLegacyEncoding: false,
+              issues: [
+                {
+                  category: 'Không thể đọc tệp',
+                  severity: 'error',
+                  message: (fileErr as Error).message || 'Lỗi đọc tệp trên trình duyệt.',
+                  count: 1,
+                },
+              ],
+            });
+          }
         }
       }
 
       const next: Record<string, AuditReport> = {};
       for (const r of reports) next[r.filePath] = r;
       setAudits(next);
+      const checkedAt = new Date().toISOString();
+      setRecentDocs((prev) =>
+        upsertRecentDocs(
+          prev,
+          reports.map((r) => ({
+            path: r.filePath,
+            name: r.fileName,
+            ext: r.fileType.toLowerCase(),
+            updatedAt: checkedAt,
+            status: 'checked',
+            summary: `Điểm thể thức: ${r.score}/100`,
+          })),
+        ),
+      );
       appendLog(`Kiểm tra lỗi hoàn tất ${reports.length} tệp.`);
       if (reports.length === 1) {
         setSelectedAudit(reports[0]);
@@ -400,6 +531,30 @@ export function App() {
         for (const l of r.logs) appendLog(`   · ${l}`);
       }
       setResults(nextRes);
+      const doneAt = new Date().toISOString();
+      const succeeded = out.filter((r) => r.success);
+      if (succeeded.length > 0) {
+        setRecentDocs((prev) =>
+          upsertRecentDocs(
+            prev,
+            succeeded.map((r) => {
+              const matched = files.find((f) => f.path === r.inputPath);
+              const name = matched?.name || r.inputPath.split(/[/\\]/).pop() || r.inputPath;
+              const ext = matched?.ext || name.split('.').pop()?.toLowerCase() || 'docx';
+              return {
+                path: r.inputPath,
+                name,
+                ext,
+                updatedAt: doneAt,
+                status: 'standardized',
+                outputPath: r.outputPath,
+                backupPath: r.backupPath,
+                summary: r.statsSummary,
+              };
+            }),
+          ),
+        );
+      }
       setToast({
         type: errCount === 0 ? 'ok' : 'err',
         text: `Hoàn tất: ${okCount} thành công${errCount > 0 ? `, ${errCount} lỗi` : ''}.`,
@@ -531,14 +686,65 @@ export function App() {
     }
   };
 
-  const navItems: { id: NavTab; label: string; group: 'doc' | 'sys'; icon: React.ReactNode }[] = [
-    { id: 'oneClick', label: 'Chuẩn hóa 1-Click', group: 'doc', icon: <Zap className="w-4 h-4" /> },
-    { id: 'format', label: 'Thể thức & Bảng', group: 'doc', icon: <Type className="w-4 h-4" /> },
-    { id: 'pageToc', label: 'Trang & Mục lục', group: 'doc', icon: <BookOpen className="w-4 h-4" /> },
-    { id: 'cleaner', label: 'Làm sạch Tiếng Việt', group: 'doc', icon: <Sparkles className="w-4 h-4" /> },
-    { id: 'security', label: 'Bảo mật & Macro', group: 'doc', icon: <Shield className="w-4 h-4" /> },
-    { id: 'system', label: 'Hệ thống & Add-in', group: 'sys', icon: <Wrench className="w-4 h-4" /> },
-  ];
+  const handleHeaderToast = useCallback(
+    (kind: 'success' | 'error' | 'info', msg: string) => {
+      setToast({ type: kind === 'error' ? 'err' : 'ok', text: msg });
+      appendLog(msg);
+    },
+    [appendLog],
+  );
+
+  const handleReplaceWebFile = useCallback((path: string, newFile: File) => {
+    setFiles((prev) =>
+      prev.map((f) =>
+        f.path === path ? { ...f, webFile: newFile, sizeBytes: newFile.size } : f,
+      ),
+    );
+  }, []);
+
+  const handleInspectInPreview = useCallback((filePath: string, elementPath: string) => {
+    setPreviewFocusTarget({ filePath, elementPath });
+    setActiveTab('livePreview');
+  }, []);
+
+  const refreshOperationLogs = useCallback(async () => {
+    if (!isNativeWin) return;
+    try {
+      const list = await bridge.invoke<OperationLogEntry[]>('get_operation_logs', { limit: 120 });
+      if (Array.isArray(list)) setOperationLogs(list);
+    } catch {
+      // ignore
+    }
+  }, [isNativeWin]);
+
+  const handleClearOperationLogs = useCallback(async () => {
+    if (!isNativeWin) return;
+    try {
+      await bridge.invoke('clear_operation_logs');
+      setOperationLogs([]);
+      setToast({ type: 'ok', text: 'Đã xóa nhật ký hệ thống.' });
+    } catch (e) {
+      setToast({ type: 'err', text: (e as Error).message });
+    }
+  }, [isNativeWin]);
+
+  const handleCancelActiveTask = useCallback(async () => {
+    if (isNativeWin) {
+      try {
+        await bridge.invoke('cancel_active_task');
+      } catch {
+        // ignore
+      }
+    }
+    setToast({ type: 'ok', text: 'Đã gửi yêu cầu dừng tác vụ an toàn.' });
+    appendLog('Đã yêu cầu dừng tác vụ đang chạy.');
+  }, [appendLog, isNativeWin]);
+
+  const navigateTo = (tab: NavTab) => {
+    setActiveTab(tab);
+    if (tab === 'system' && isNativeWin) void refreshSystemAndAddins();
+    if (tab === 'security' && isNativeWin) void refreshOperationLogs();
+  };
 
   const activePresetLabel = useMemo(() => {
     if (config.preset === 'custom') return 'Tùy chỉnh';
@@ -556,6 +762,9 @@ export function App() {
     updateSecurity,
     activityLogs,
     onClearLogs: () => setActivityLogs([]),
+    operationLogs,
+    onRefreshOpLogs: () => void refreshOperationLogs(),
+    onClearOpLogs: () => void handleClearOperationLogs(),
     isNativeWin,
     systemStatus,
     addinApp,
@@ -568,6 +777,71 @@ export function App() {
     handleManageAddin,
     handleInstallFonts,
     onOpenDesktopDownload: handleOpenDesktopDownload,
+    files,
+    audits,
+    results,
+    recentDocs,
+    onNavigate: navigateTo,
+    onPickFiles: () => void handlePickFiles(),
+    onOpenOutput: (path: string, reveal?: boolean) => void handleOpenOutput(path, reveal),
+    onDownloadOutput: handleDownloadWebOutput,
+    onRestoreBackup: (originalPath: string, backupPath: string) =>
+      void handleRestoreBackup(originalPath, backupPath),
+    onClearRecent: () => setRecentDocs([]),
+    renderHeaderBuilder: () => (
+      <HeaderBuilderWorkspace
+        files={files}
+        onPickFiles={handlePickFiles}
+        onReplaceWebFile={handleReplaceWebFile}
+        onStatusToast={handleHeaderToast}
+      />
+    ),
+    renderStandardizer: () => (
+      <StandardizationWorkspace
+        files={files}
+        onPickFiles={handlePickFiles}
+        onReplaceWebFile={handleReplaceWebFile}
+        onInspectInPreview={handleInspectInPreview}
+        onStatusToast={handleHeaderToast}
+      />
+    ),
+    renderTemplateEngine: () => (
+      <TemplateWorkspace
+        files={files}
+        onPickFiles={handlePickFiles}
+        onReplaceWebFile={handleReplaceWebFile}
+        onStatusToast={handleHeaderToast}
+      />
+    ),
+    renderLayoutIntelligence: () => (
+      <LayoutIntelligenceWorkspace
+        files={files}
+        onPickFiles={handlePickFiles}
+        onReplaceWebFile={handleReplaceWebFile}
+        onStatusToast={handleHeaderToast}
+      />
+    ),
+    renderComplianceAudit: () => (
+      <ComplianceAuditWorkspace
+        files={files}
+        onPickFiles={handlePickFiles}
+        onReplaceWebFile={handleReplaceWebFile}
+        onInspectInPreview={handleInspectInPreview}
+        onStatusToast={handleHeaderToast}
+      />
+    ),
+    renderLivePreview: () => (
+      <LivePreviewWorkspace
+        files={files}
+        results={results}
+        config={config}
+        focusTarget={previewFocusTarget}
+        onClearFocusTarget={() => setPreviewFocusTarget(null)}
+        onPickFiles={handlePickFiles}
+        onProcessCurrentFile={() => void handleProcessFiles()}
+        onStatusToast={handleHeaderToast}
+      />
+    ),
   };
 
   const handleWebDragOver = (e: React.DragEvent) => {
@@ -619,7 +893,7 @@ export function App() {
           applyPreset={applyPreset}
           configPanelsProps={configPanelsProps}
           activeConfigTab={activeTab}
-          setActiveConfigTab={setActiveTab}
+          setActiveConfigTab={navigateTo}
           files={files}
           audits={audits}
           results={results}
@@ -648,10 +922,8 @@ export function App() {
           onOpenUpdate={() => setUpdateDialogOpen(true)}
           onOpenAbout={() => setAboutDialogOpen(true)}
           activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          navItems={navItems}
+          setActiveTab={navigateTo}
           configPanelsProps={configPanelsProps}
-          presets={presets}
           config={config}
           files={files}
           audits={audits}
@@ -679,12 +951,14 @@ export function App() {
         />
       )}
 
-      {edition === 'win' && (
+      {edition === 'win' && (() => {
+        const showBatchPanels = ['oneClick', 'format', 'pageToc', 'cleaner', 'security'].includes(activeTab);
+        return (
         <div
           onDragOver={!isNativeWin ? handleWebDragOver : undefined}
           onDragLeave={!isNativeWin ? handleWebDragLeave : undefined}
           onDrop={!isNativeWin ? handleWebDrop : undefined}
-          className="h-screen flex flex-col bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100"
+          className="h-screen flex flex-col mw-canvas"
         >
           {/* Windows Topbar */}
           <header className="h-14 shrink-0 px-4 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur flex items-center justify-between gap-3">
@@ -706,48 +980,14 @@ export function App() {
                     onOpenUpdate={() => setUpdateDialogOpen(true)}
                     editionLabel={editionLabel}
                   />
-                  <span className="hidden sm:inline-block text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300 border border-orange-200 dark:border-orange-800">
-                    RUST CORE
-                  </span>
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                  Chuẩn hóa văn bản NĐ 30/2020 &amp; Văn bản Đảng · Hệ sinh thái Mon
+                  Chuẩn hóa và kiểm tra thể thức văn bản
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <PlatformSwitcher
-                edition={edition}
-                override={override}
-                onChangeOverride={setOverride}
-                compact
-              />
-
-              <div className="hidden xl:flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
-                {(
-                  [
-                    { id: 'nd30', label: 'NĐ 30/2020' },
-                    { id: 'vbDang', label: 'VB Đảng' },
-                    { id: 'doanhNghiep', label: 'Doanh nghiệp' },
-                    { id: 'luanVan', label: 'Luận văn' },
-                  ] as { id: PresetId; label: string }[]
-                ).map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => applyPreset(p.id)}
-                    className={`px-2 py-1 rounded-lg text-xs font-semibold transition-all ${
-                      config.preset === p.id
-                        ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
-                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
-                    }`}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-
               <button
                 type="button"
                 onClick={() => setAboutDialogOpen(true)}
@@ -768,195 +1008,132 @@ export function App() {
             </div>
           </header>
 
-          {/* Main 3-Pane Workspace */}
-          <div className="flex-1 min-h-0 flex overflow-hidden">
+          {/* Main Workspace */}
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
             {/* Pane 1: Sidebar */}
-            <aside className="w-52 shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex flex-col justify-between">
-              <div className="space-y-4">
-                <div>
-                  <div className="px-2.5 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Xử lý tài liệu
-                  </div>
-                  <nav className="space-y-1">
-                    {navItems
-                      .filter((i) => i.group === 'doc')
-                      .map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => setActiveTab(item.id)}
-                          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
-                            activeTab === item.id
-                              ? 'bg-blue-600 text-white shadow-sm'
-                              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                          }`}
-                        >
-                          {item.icon}
-                          <span>{item.label}</span>
-                        </button>
-                      ))}
-                  </nav>
-                </div>
-
-                <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
-                  <div className="px-2.5 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Cấu hình máy tính
-                  </div>
-                  <nav className="space-y-1">
-                    {navItems
-                      .filter((i) => i.group === 'sys')
-                      .map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => {
-                            setActiveTab(item.id);
-                            void refreshSystemAndAddins();
-                          }}
-                          className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
-                            activeTab === item.id
-                              ? 'bg-indigo-600 text-white shadow-sm'
-                              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                          }`}
-                        >
-                          {item.icon}
-                          <span>{item.label}</span>
-                        </button>
-                      ))}
-                  </nav>
-                </div>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 text-[11px] space-y-1">
-                <div className="font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
-                  <Layout className="w-3.5 h-3.5 text-blue-500" />
-                  Đang chọn:
-                </div>
-                <div className="text-slate-500 dark:text-slate-400 truncate">{activePresetLabel}</div>
-              </div>
+            <aside className="shrink-0 border-b border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 lg:flex lg:w-56 lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r">
+              <WorkspaceNavigation activeTab={activeTab} onSelect={navigateTo} />
             </aside>
 
-            {/* Pane 2: Center Configuration */}
-            <main className="flex-1 min-w-0 overflow-y-auto p-5 space-y-4">
-              {toast && (
-                <div
-                  className={`px-4 py-2.5 rounded-xl border text-xs font-semibold flex items-center gap-2 shadow-sm ${
-                    toast.type === 'ok'
-                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/70 dark:border-emerald-800 dark:text-emerald-200'
-                      : 'bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-950/70 dark:border-rose-800 dark:text-rose-200'
-                  }`}
-                >
-                  {toast.type === 'ok' ? (
-                    <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  ) : (
-                    <AlertTriangle className="w-4 h-4 shrink-0" />
-                  )}
-                  <span>{toast.text}</span>
-                </div>
-              )}
+            {/* Pane 2: Center Workspace */}
+            <main className="flex-1 min-w-0 p-4 space-y-4 lg:overflow-y-auto lg:p-6">
+              {toast && <Toast {...toast} />}
 
-              <ConfigPanels {...configPanelsProps} />
+              {activeTab === 'home' ? (
+                <WorkspaceHome
+                  files={files}
+                  onPickFiles={handlePickFiles}
+                  onPickFolder={isNativeWin ? handlePickFolder : undefined}
+                  onTask={navigateTo}
+                  onShowFiles={() => navigateTo('history')}
+                  progress={busy ? progress : null}
+                  isDragging={isDragging}
+                />
+              ) : <ConfigPanels {...configPanelsProps} />}
             </main>
 
-            {/* Pane 3: File Queue & Live A4 Preview */}
-            <aside className="w-[330px] shrink-0 border-l border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 p-3 flex flex-col gap-3 overflow-y-auto">
-              <FileQueuePanel
-                files={files}
-                audits={audits}
-                results={results}
-                isDragging={isDragging}
-                isBrowserMode={!isNativeWin}
-                onPickFiles={handlePickFiles}
-                onPickFolder={handlePickFolder}
-                onRemoveFile={(path) => setFiles((prev) => prev.filter((f) => f.path !== path))}
-                onClearAll={() => {
-                  setFiles([]);
-                  setAudits({});
-                  setResults({});
-                }}
-                onOpenReport={(report) => setSelectedAudit(report)}
-                onOpenOutput={handleOpenOutput}
-                onDownloadOutput={handleDownloadWebOutput}
-                onShareOutput={(res) => void handleShareWebOutput(res)}
-                onRestoreBackup={handleRestoreBackup}
-              />
-              <A4LivePreview config={config} />
-            </aside>
+            {/* Pane 3: File Queue (only on batch config tabs) */}
+            {showBatchPanels && (
+              <aside className="shrink-0 border-t border-slate-200 bg-slate-50/70 p-3 flex flex-col gap-3 dark:border-slate-800 dark:bg-slate-900/50 lg:w-[290px] lg:overflow-y-auto lg:border-l lg:border-t-0 xl:w-[330px]">
+                <FileQueuePanel
+                  files={files}
+                  audits={audits}
+                  results={results}
+                  isDragging={isDragging}
+                  isBrowserMode={!isNativeWin}
+                  onPickFiles={handlePickFiles}
+                  onPickFolder={handlePickFolder}
+                  onRemoveFile={(path) => setFiles((prev) => prev.filter((f) => f.path !== path))}
+                  onClearAll={() => {
+                    setFiles([]);
+                    setAudits({});
+                    setResults({});
+                  }}
+                  onOpenReport={(report) => setSelectedAudit(report)}
+                  onOpenOutput={handleOpenOutput}
+                  onDownloadOutput={handleDownloadWebOutput}
+                  onShareOutput={(res) => void handleShareWebOutput(res)}
+                  onRestoreBackup={handleRestoreBackup}
+                />
+              </aside>
+            )}
           </div>
 
-          {/* Bottom Action Bar */}
-          <footer className="h-14 shrink-0 px-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-4 text-xs">
-              <div className="inline-flex items-center rounded-xl border border-slate-200 dark:border-slate-700 p-0.5 bg-slate-100 dark:bg-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setConfig((p) => ({ ...p, outputMode: 'newCopy' }))}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg font-semibold ${
-                    config.outputMode === 'newCopy'
-                      ? 'bg-white dark:bg-slate-900 text-blue-600 shadow-sm'
-                      : 'text-slate-600 dark:text-slate-300'
-                  }`}
-                >
-                  <FileOutput className="w-3.5 h-3.5" /> Tạo bản sao (_chuanhoa)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfig((p) => ({ ...p, outputMode: 'overwriteWithBackup' }))}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg font-semibold ${
-                    config.outputMode === 'overwriteWithBackup'
-                      ? 'bg-white dark:bg-slate-900 text-amber-600 shadow-sm'
-                      : 'text-slate-600 dark:text-slate-300'
-                  }`}
-                >
-                  <Lock className="w-3.5 h-3.5" /> Ghi đè + Tự Backup (.bak)
-                </button>
+          {/* Bottom Batch Action Bar (only on batch config tabs) */}
+          {showBatchPanels && (
+            <footer className="min-h-14 shrink-0 flex-wrap px-4 py-2 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-4 text-xs">
+                <div className="inline-flex items-center rounded-xl border border-slate-200 dark:border-slate-700 p-0.5 bg-slate-100 dark:bg-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setConfig((p) => ({ ...p, outputMode: 'newCopy' }))}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg font-semibold ${
+                      config.outputMode === 'newCopy'
+                        ? 'bg-white dark:bg-slate-900 text-blue-600 shadow-sm'
+                        : 'text-slate-600 dark:text-slate-300'
+                    }`}
+                  >
+                    <FileOutput className="w-3.5 h-3.5" /> Lưu thành tệp mới
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfig((p) => ({ ...p, outputMode: 'overwriteWithBackup' }))}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg font-semibold ${
+                      config.outputMode === 'overwriteWithBackup'
+                        ? 'bg-white dark:bg-slate-900 text-amber-600 shadow-sm'
+                        : 'text-slate-600 dark:text-slate-300'
+                    }`}
+                  >
+                    <Lock className="w-3.5 h-3.5" /> Ghi đè tệp gốc (có sao lưu)
+                  </button>
+                </div>
+
+                {isNativeWin && (
+                  <label className="hidden lg:inline-flex items-center gap-1.5 font-medium cursor-pointer text-slate-600 dark:text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={config.alsoExportPdf}
+                      onChange={(e) => setConfig((p) => ({ ...p, alsoExportPdf: e.target.checked }))}
+                      className="rounded border-slate-300 text-blue-600"
+                    />
+                    <FileText className="w-3.5 h-3.5 text-rose-500" />
+                    Lưu thêm bản PDF
+                  </label>
+                )}
               </div>
 
-              {isNativeWin && (
-                <label className="hidden lg:inline-flex items-center gap-1.5 font-medium cursor-pointer text-slate-600 dark:text-slate-300">
-                  <input
-                    type="checkbox"
-                    checked={config.alsoExportPdf}
-                    onChange={(e) => setConfig((p) => ({ ...p, alsoExportPdf: e.target.checked }))}
-                    className="rounded border-slate-300 text-blue-600"
-                  />
-                  <FileText className="w-3.5 h-3.5 text-rose-500" />
-                  Xuất kèm PDF (Word COM)
-                </label>
-              )}
-            </div>
+              <div className="flex items-center gap-2.5">
+                {busy && progress && (
+                  <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 font-semibold">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>
+                      {progress.phase === 'audit' ? 'Đang kiểm tra' : 'Đang chuẩn hóa'} {progress.current}/{progress.total}
+                    </span>
+                  </div>
+                )}
 
-            <div className="flex items-center gap-2.5">
-              {busy && progress && (
-                <div className="flex items-center gap-2 text-xs text-blue-600 dark:text-blue-400 font-semibold">
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  <span>
-                    {progress.phase === 'audit' ? 'Đang quét' : 'Đang xử lý'} {progress.current}/{progress.total}
-                  </span>
-                </div>
-              )}
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={handleAuditFiles}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-bold disabled:opacity-50"
+                >
+                  <SearchCheck className="w-4 h-4 text-indigo-500" />
+                  Kiểm tra lỗi
+                </button>
 
-              <button
-                type="button"
-                disabled={busy}
-                onClick={handleAuditFiles}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-bold disabled:opacity-50"
-              >
-                <SearchCheck className="w-4 h-4 text-indigo-500" />
-                Kiểm tra lỗi
-              </button>
-
-              <button
-                type="button"
-                disabled={busy}
-                onClick={handleProcessFiles}
-                className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold shadow-sm disabled:opacity-50"
-              >
-                <Play className="w-3.5 h-3.5 fill-current" />
-                ÁP DỤNG CHUẨN HÓA
-              </button>
-            </div>
-          </footer>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={handleProcessFiles}
+                  className="mw-button mw-button-primary"
+                >
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  Bắt đầu chuẩn hóa
+                </button>
+              </div>
+            </footer>
+          )}
 
           <StatusBar
             fileCount={files.length}
@@ -966,11 +1143,13 @@ export function App() {
             progress={progress}
             currentVersion={currentVersion}
             updateInfo={updateInfo}
+            onCancelTask={() => void handleCancelActiveTask()}
             onOpenUpdate={() => setUpdateDialogOpen(true)}
             onOpenAbout={() => setAboutDialogOpen(true)}
           />
         </div>
-      )}
+        );
+      })()}
 
       <AuditModal report={selectedAudit} onClose={() => setSelectedAudit(null)} />
 

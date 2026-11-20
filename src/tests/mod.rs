@@ -1,1 +1,9 @@
 mod integration_tests;
+mod header_builder_tests;
+mod standardization_engine_tests;
+mod template_engine_tests;
+mod layout_intelligence_tests;
+mod compliance_audit_tests;
+mod live_preview_tests;
+mod phase9_release_tests;
+mod reliability_preservation_tests;

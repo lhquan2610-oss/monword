@@ -1,3 +1,4 @@
+import { Dialog } from './Dialog';
 import React from 'react';
 import { AlertCircle, AlertTriangle, Info, ShieldAlert, X } from 'lucide-react';
 import { AuditReport } from '../types';
@@ -10,16 +11,24 @@ interface Props {
 export const AuditModal: React.FC<Props> = ({ report, onClose }) => {
   if (!report) return null;
 
-  const scoreColor =
-    report.score >= 85
-      ? 'text-emerald-600 dark:text-emerald-400'
-      : report.score >= 60
+  const errorCount = report.issues
+    .filter((i) => i.severity === 'error')
+    .reduce((acc, i) => acc + i.count, 0);
+  const warningCount = report.issues
+    .filter((i) => i.severity === 'warning')
+    .reduce((acc, i) => acc + i.count, 0);
+  const statusLabel =
+    errorCount > 0 ? 'Không đạt' : warningCount > 0 ? 'Cần kiểm tra' : 'Đạt';
+  const statusColor =
+    errorCount > 0
+      ? 'text-rose-600 dark:text-rose-400'
+      : warningCount > 0
       ? 'text-amber-600 dark:text-amber-400'
-      : 'text-rose-600 dark:text-rose-400';
+      : 'text-emerald-600 dark:text-emerald-400';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
+    <Dialog label="Báo cáo kiểm tra tài liệu" widthClass="max-w-xl" onClose={onClose}>
+      <div>
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/80">
           <div>
             <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
@@ -32,7 +41,8 @@ export const AuditModal: React.FC<Props> = ({ report, onClose }) => {
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800"
+            aria-label="Đóng hộp thoại"
+            className="mw-button mw-button-tertiary mw-icon-button"
           >
             <X className="w-4 h-4" />
           </button>
@@ -42,9 +52,12 @@ export const AuditModal: React.FC<Props> = ({ report, onClose }) => {
           <div className="flex items-center justify-between rounded-xl p-4 bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800">
             <div>
               <div className="text-xs uppercase tracking-wider font-semibold text-slate-500">
-                Điểm tuân thủ NĐ30
+                Trạng thái kiểm tra nhanh
               </div>
-              <div className={`text-3xl font-extrabold ${scoreColor}`}>{report.score}/100</div>
+              <div className={`text-xl font-extrabold ${statusColor}`}>{statusLabel}</div>
+              <div className="text-[11px] text-slate-500 mt-0.5">
+                {errorCount} lỗi · {warningCount} cảnh báo
+              </div>
             </div>
             <div className="grid grid-cols-3 gap-3 text-center text-xs">
               <div className="px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
@@ -124,12 +137,12 @@ export const AuditModal: React.FC<Props> = ({ report, onClose }) => {
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 rounded-lg bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-semibold hover:opacity-90"
+            className="mw-button mw-button-secondary"
           >
             Đóng
           </button>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 };

@@ -1,3 +1,4 @@
+import { Dialog } from './Dialog';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ArrowUpCircle,
@@ -132,13 +133,13 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/55 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+    <Dialog label="Trung tâm Phiên bản & Live OTA" widthClass="max-w-lg" onClose={onClose}>
+      <div>
         {/* Header */}
         <div
           className={`px-5 py-3.5 border-b flex items-center justify-between ${
             hasUpdate
-              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-blue-700'
+              ? 'mw-warning border-current'
               : 'bg-slate-50 dark:bg-slate-800/70 border-slate-200 dark:border-slate-800'
           }`}
         >
@@ -152,7 +153,7 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
               <h2 className="text-sm font-bold leading-tight">
                 {hasUpdate ? `Có bản cập nhật mới MonWord v${latVer}!` : 'Trung tâm Phiên bản & Live OTA'}
               </h2>
-              <p className={`text-[11px] ${hasUpdate ? 'text-blue-100' : 'text-slate-500 dark:text-slate-400'}`}>
+              <p className={`text-[11px] ${hasUpdate ? 'text-current' : 'text-slate-500 dark:text-slate-400'}`}>
                 {result?.codename || APP_CODENAME}
               </p>
             </div>
@@ -160,9 +161,8 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className={`p-1 rounded-lg ${
-              hasUpdate ? 'hover:bg-white/15 text-white' : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-            }`}
+            aria-label="Đóng hộp thoại"
+            className="mw-button mw-button-tertiary mw-icon-button"
           >
             <X className="w-4 h-4" />
           </button>
@@ -313,12 +313,12 @@ export const UpdateDialog: React.FC<UpdateDialogProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-800 dark:text-slate-200 text-xs font-semibold"
+            className="mw-button mw-button-secondary"
           >
             Đóng
           </button>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 };

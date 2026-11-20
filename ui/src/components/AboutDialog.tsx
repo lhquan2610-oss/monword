@@ -1,3 +1,4 @@
+import { Dialog } from './Dialog';
 import React from 'react';
 import { RefreshCw, ShieldCheck, X } from 'lucide-react';
 import type { PlatformEdition } from '../types';
@@ -29,13 +30,14 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({
       : 'Web Edition (monword.vercel.app)';
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/55 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl max-w-md w-full p-6 text-center">
+    <Dialog label="Giới thiệu MonWord" widthClass="max-w-md" onClose={onClose}>
+      <div className="p-6 text-center">
         <div className="flex justify-end -mt-2 -mr-2">
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+            aria-label="Đóng hộp thoại"
+            className="mw-button mw-button-tertiary mw-icon-button"
           >
             <X className="w-4 h-4" />
           </button>
@@ -51,6 +53,9 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({
 
         <div className="text-xs font-bold text-blue-600 dark:text-blue-400 mb-1">
           Phiên bản v{currentVersion || APP_VERSION} · {APP_CODENAME}
+        </div>
+        <div className="text-[11px] font-medium text-slate-600 dark:text-slate-300 mb-0.5">
+          Nhà phát hành: Hệ sinh thái Văn phòng Mon (Mon Office Ecosystem)
         </div>
         <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-3">{platformName}</div>
 
@@ -76,19 +81,19 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({
               onClose();
               onOpenUpdate();
             }}
-            className="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold flex items-center justify-center gap-1.5"
+            className="mw-button mw-button-primary flex-1"
           >
             <RefreshCw className="w-3.5 h-3.5" /> Kiểm tra cập nhật
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold"
+            className="mw-button mw-button-secondary flex-1"
           >
             Đóng
           </button>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 };

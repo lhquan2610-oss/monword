@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { ShieldCheck, RotateCw } from 'lucide-react';
+import { Eye, RotateCw, ShieldCheck } from 'lucide-react';
 import { ProcessConfig } from '../types';
 
 interface Props {
   config: ProcessConfig;
+  fileCount?: number;
+  onOpenFullPreview?: () => void;
 }
 
-export const A4LivePreview: React.FC<Props> = ({ config }) => {
+export const A4LivePreview: React.FC<Props> = ({ config, fileCount, onOpenFullPreview }) => {
   const { format, pageToc } = config;
   const [previewLandscapePage, setPreviewLandscapePage] = useState(false);
 
@@ -235,6 +237,17 @@ export const A4LivePreview: React.FC<Props> = ({ config }) => {
           {format.smartTables ? `Bảng ${format.tableFontSizePt}pt` : 'Bảng nguyên trạng'}
         </span>
       </div>
+
+      {onOpenFullPreview && (
+        <button
+          type="button"
+          onClick={onOpenFullPreview}
+          className="mt-2.5 w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 px-2.5 py-1.5 text-[11px] font-semibold transition-colors"
+        >
+          <Eye className="w-3.5 h-3.5" />
+          Mở Xem trước A4 đầy đủ{fileCount ? ` (${fileCount} tệp)` : ''}
+        </button>
+      )}
     </div>
   );
 };

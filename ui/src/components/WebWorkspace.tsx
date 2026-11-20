@@ -1,7 +1,6 @@
+import { Toast } from './Toast';
 import React from 'react';
 import {
-  AlertTriangle,
-  CheckCircle2,
   Download,
   ExternalLink,
   Info,
@@ -11,7 +10,7 @@ import {
   SearchCheck,
   ShieldCheck,
   Sun,
-  UploadCloud,
+  FolderOpen,
 } from 'lucide-react';
 import type {
   AuditReport,
@@ -19,7 +18,6 @@ import type {
   FileQueueItem,
   NavTab,
   PlatformEdition,
-  PresetInfo,
   ProcessConfig,
   ProgressPayload,
   UILayoutOverride,
@@ -29,6 +27,8 @@ import { A4LivePreview } from './A4LivePreview';
 import { ConfigPanels, type ConfigPanelsProps } from './ConfigPanels';
 import { FileQueuePanel } from './FileQueuePanel';
 import { PlatformSwitcher, VersionOtaPill } from './PlatformSwitcher';
+import { WorkspaceHome } from './WorkspaceHome';
+import { WorkspaceNavigation } from './WorkspaceNavigation';
 
 interface WebWorkspaceProps {
   darkMode: boolean;
@@ -42,9 +42,7 @@ interface WebWorkspaceProps {
   onOpenAbout: () => void;
   activeTab: NavTab;
   setActiveTab: (tab: NavTab) => void;
-  navItems: { id: NavTab; label: string; group: 'doc' | 'sys'; icon: React.ReactNode }[];
   configPanelsProps: ConfigPanelsProps;
-  presets: PresetInfo[];
   config: ProcessConfig;
   files: FileQueueItem[];
   audits: Record<string, AuditReport>;
@@ -79,7 +77,6 @@ export const WebWorkspace: React.FC<WebWorkspaceProps> = ({
   onOpenAbout,
   activeTab,
   setActiveTab,
-  navItems,
   configPanelsProps,
   config,
   files,
@@ -107,7 +104,7 @@ export const WebWorkspace: React.FC<WebWorkspaceProps> = ({
       onDragOver={onWebDragOver}
       onDragLeave={onWebDragLeave}
       onDrop={onWebDrop}
-      className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 via-blue-50/25 to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-900 dark:text-slate-100"
+      className="min-h-screen flex flex-col mw-canvas"
     >
       {/* Glass Web Header */}
       <header className="sticky top-0 z-30 border-b border-slate-200/80 dark:border-slate-800 bg-white/85 dark:bg-slate-900/85 backdrop-blur-md">
@@ -151,7 +148,7 @@ export const WebWorkspace: React.FC<WebWorkspaceProps> = ({
             <button
               type="button"
               onClick={onOpenDesktopDownload}
-              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 dark:bg-blue-600 hover:bg-slate-800 dark:hover:bg-blue-700 text-white text-xs font-semibold shadow-sm"
+              className="mw-button mw-button-secondary hidden md:inline-flex"
               title="Tải MonWord Desktop (.exe) hỗ trợ .doc cũ, Word COM & Registry"
             >
               <Download className="w-3.5 h-3.5" /> Bản Windows (.exe)
@@ -178,135 +175,98 @@ export const WebWorkspace: React.FC<WebWorkspaceProps> = ({
         </div>
       </header>
 
-      {/* Main Container */}
-      <div className="flex-1 max-w-7xl w-full mx-auto px-4 py-5 space-y-4">
-        {toast && (
-          <div
-            className={`px-4 py-2.5 rounded-xl border text-xs font-semibold flex items-center gap-2 shadow-sm ${
-              toast.type === 'ok'
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/70 dark:border-emerald-800 dark:text-emerald-200'
-                : 'bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-950/70 dark:border-rose-800 dark:text-rose-200'
-            }`}
-          >
-            {toast.type === 'ok' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertTriangle className="w-4 h-4 shrink-0" />}
-            <span>{toast.text}</span>
-          </div>
-        )}
+      <div className="mx-auto grid w-full max-w-screen-2xl flex-1 items-start gap-5 px-4 py-5 lg:grid-cols-[13rem_minmax(0,1fr)] lg:px-6">
+        <aside className="mw-panel p-2 lg:sticky lg:top-20 lg:p-3">
+          <WorkspaceNavigation activeTab={activeTab} onSelect={setActiveTab} />
+        </aside>
 
-        {/* Top Web Dropzone Hero + Primary Action */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
-          <div
-            onClick={onPickFiles}
-            className={`lg:col-span-7 rounded-2xl border-2 border-dashed p-5 flex flex-col sm:flex-row items-center justify-between gap-4 cursor-pointer transition-all ${
-              isDragging
-                ? 'border-blue-600 bg-blue-50/90 dark:bg-blue-950/40 ring-4 ring-blue-500/20'
-                : 'border-blue-300/80 dark:border-blue-800 bg-white/90 dark:bg-slate-900 hover:border-blue-500 shadow-sm'
-            }`}
-          >
-            <div className="flex items-center gap-4 text-center sm:text-left">
-              <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shrink-0">
-                <UploadCloud className="w-6 h-6" />
-              </div>
-              <div>
-                <h1 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-slate-100">
-                  Kéo thả hoặc chọn tệp Word (.docx, .docm) để chuẩn hóa tức thì
-                </h1>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Toàn bộ thao tác căn lề NĐ 30/2020, sửa phông chữ, bảng biểu &amp; tiếng Việt chạy ngay trên trình duyệt của bạn.
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onPickFiles();
-              }}
-              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm shrink-0"
-            >
-              Chọn tệp .docx
-            </button>
-          </div>
-
-          <div className="lg:col-span-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm flex flex-col justify-between gap-3">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-slate-700 dark:text-slate-200">
-                Thao tác Web ({files.length} tệp trong hàng đợi)
-              </span>
-              {busy && progress && (
-                <span className="inline-flex items-center gap-1 text-blue-600 font-semibold">
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  {progress.current}/{progress.total}
-                </span>
-              )}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                disabled={busy || files.length === 0}
-                onClick={onAuditFiles}
-                className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 text-xs font-bold disabled:opacity-50"
-              >
-                <SearchCheck className="w-4 h-4 text-indigo-500" />
-                Kiểm tra lỗi
-              </button>
-              <button
-                type="button"
-                disabled={busy || files.length === 0}
-                onClick={onProcessFiles}
-                className="flex-[1.5] inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold shadow-sm disabled:opacity-50"
-              >
-                <Play className="w-3.5 h-3.5 fill-current" />
-                CHUẨN HÓA &amp; TẢI VỀ
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Horizontal Navigation Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setActiveTab(item.id)}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap border transition-all ${
-                activeTab === item.id
-                  ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                  : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-blue-300'
-              }`}
-            >
-              {item.icon}
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* 2-Column Web Studio */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-          <div className="lg:col-span-8 space-y-4">
-            <ConfigPanels {...configPanelsProps} />
-          </div>
-          <div className="lg:col-span-4 space-y-4">
-            <FileQueuePanel
+        <main className="min-w-0 space-y-4">
+          {toast && <Toast {...toast} />}
+          {activeTab === 'home' ? (
+            <WorkspaceHome
               files={files}
-              audits={audits}
-              results={results}
-              isDragging={isDragging}
-              isBrowserMode
               onPickFiles={onPickFiles}
-              onPickFolder={onPickFiles}
-              onRemoveFile={onRemoveFile}
-              onClearAll={onClearAll}
-              onOpenReport={onOpenReport}
-              onOpenOutput={() => {}}
-              onDownloadOutput={onDownloadOutput}
-              onShareOutput={onShareOutput}
-              onRestoreBackup={() => {}}
+              onTask={setActiveTab}
+              onShowFiles={() => setActiveTab('oneClick')}
+              progress={busy ? progress : null}
+              isDragging={isDragging}
             />
-            <A4LivePreview config={config} />
-          </div>
-        </div>
+          ) : (
+            <>
+              <div role="group" aria-label="Thao tác tài liệu" className="mw-panel flex flex-wrap items-center justify-between gap-3 p-3">
+                <div className="flex flex-wrap items-center gap-3 text-xs">
+                  <span className="font-bold text-slate-700 dark:text-slate-200">
+                    {files.length} tệp trong hàng đợi
+                  </span>
+                  {busy && progress && (
+                    <span role="status" className="inline-flex items-center gap-1 text-slate-700 dark:text-slate-200 font-semibold">
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      Đang xử lý {progress.current}/{progress.total}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button type="button" onClick={onPickFiles} className="mw-button mw-button-secondary">
+                    <FolderOpen className="size-4" aria-hidden="true" /> Mở tài liệu
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy || files.length === 0}
+                    onClick={onAuditFiles}
+                    className="mw-button mw-button-secondary"
+                  >
+                    <SearchCheck className="w-4 h-4 text-indigo-500" />
+                    Kiểm tra lỗi
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy || files.length === 0}
+                    onClick={onProcessFiles}
+                    className="mw-button mw-button-primary"
+                  >
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    Chuẩn hóa nhanh
+                  </button>
+                </div>
+              </div>
+              {/* 2-Column Web Studio (full width for Live A4 Preview Studio) */}
+              {activeTab === 'livePreview' ? (
+                <div className="min-w-0">
+                  <ConfigPanels {...configPanelsProps} />
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_19rem] gap-4 items-start">
+                  <div className="min-w-0 space-y-4">
+                    <ConfigPanels {...configPanelsProps} />
+                  </div>
+                  <div className="min-w-0 space-y-4">
+                    <FileQueuePanel
+                      files={files}
+                      audits={audits}
+                      results={results}
+                      isDragging={isDragging}
+                      isBrowserMode
+                      onPickFiles={onPickFiles}
+                      onPickFolder={onPickFiles}
+                      onRemoveFile={onRemoveFile}
+                      onClearAll={onClearAll}
+                      onOpenReport={onOpenReport}
+                      onOpenOutput={() => {}}
+                      onDownloadOutput={onDownloadOutput}
+                      onShareOutput={onShareOutput}
+                      onRestoreBackup={() => {}}
+                    />
+                    <A4LivePreview
+                      config={config}
+                      fileCount={files.length}
+                      onOpenFullPreview={() => setActiveTab('livePreview')}
+                    />
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </main>
       </div>
 
       {/* Ecosystem Footer */}

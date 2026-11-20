@@ -210,20 +210,38 @@ fn convert_legacy_runs_in_table(tbl: &mut XmlElement, stats: &mut CleanStats) {
     }
 }
 
-fn is_removable_empty_paragraph(p: &XmlElement) -> bool {
+pub(crate) fn is_removable_empty_paragraph(p: &XmlElement) -> bool {
     if !p.extract_text().trim().is_empty() {
         return false;
     }
-    // Keep if paragraph contains section break, drawing, page break, object, math, or field
+    // Keep if paragraph contains section break, drawing, page break, object, math, field, or anchor
     !has_structural_child(p)
 }
 
-fn has_structural_child(el: &XmlElement) -> bool {
+pub(crate) fn has_structural_child(el: &XmlElement) -> bool {
     for node in &el.children {
         if let XmlNode::Element(sub) = node {
             match sub.name.as_str() {
-                "w:sectPr" | "w:drawing" | "w:pict" | "w:object" | "m:oMath" | "m:oMathPara"
-                | "w:fldChar" | "w:instrText" => return true,
+                "w:sectPr"
+                | "w:drawing"
+                | "w:pict"
+                | "mc:AlternateContent"
+                | "w:pBdr"
+                | "w:object"
+                | "m:oMath"
+                | "m:oMathPara"
+                | "w:fldChar"
+                | "w:fldSimple"
+                | "w:instrText"
+                | "w:bookmarkStart"
+                | "w:bookmarkEnd"
+                | "w:commentRangeStart"
+                | "w:commentRangeEnd"
+                | "w:footnoteReference"
+                | "w:endnoteReference"
+                | "w:commentReference" => {
+                    return true;
+                }
                 "w:br" => {
                     if let Some(t) = sub.get_attr("w:type") {
                         if t == "page" || t == "column" {
@@ -241,7 +259,7 @@ fn has_structural_child(el: &XmlElement) -> bool {
     false
 }
 
-fn split_soft_breaks_in_paragraph(p: XmlElement, stats: &mut CleanStats) -> Vec<XmlElement> {
+pub(crate) fn split_soft_breaks_in_paragraph(p: XmlElement, stats: &mut CleanStats) -> Vec<XmlElement> {
     if !contains_soft_break(&p) {
         return vec![p];
     }
@@ -324,7 +342,7 @@ fn split_soft_breaks_in_paragraph(p: XmlElement, stats: &mut CleanStats) -> Vec<
     result_paragraphs
 }
 
-fn contains_soft_break(p: &XmlElement) -> bool {
+pub(crate) fn contains_soft_break(p: &XmlElement) -> bool {
     p.children.iter().any(|n| match n {
         XmlNode::Element(r) if r.name == "w:r" => contains_direct_soft_break(r),
         _ => false,
@@ -340,7 +358,7 @@ fn contains_direct_soft_break(r: &XmlElement) -> bool {
     })
 }
 
-fn convert_legacy_runs_in_element(el: &mut XmlElement, stats: &mut CleanStats) {
+pub(crate) fn convert_legacy_runs_in_element(el: &mut XmlElement, stats: &mut CleanStats) {
     for node in &mut el.children {
         let XmlNode::Element(child) = node else {
             continue;
@@ -384,7 +402,7 @@ fn convert_legacy_runs_in_element(el: &mut XmlElement, stats: &mut CleanStats) {
     }
 }
 
-fn extract_run_font(run: &XmlElement) -> Option<String> {
+pub(crate) fn extract_run_font(run: &XmlElement) -> Option<String> {
     let r_fonts = run.child("w:rPr")?.child("w:rFonts")?;
     r_fonts
         .get_attr("w:ascii")
@@ -393,7 +411,7 @@ fn extract_run_font(run: &XmlElement) -> Option<String> {
         .map(|s| s.to_string())
 }
 
-fn clean_paragraph_text(p: &mut XmlElement, cfg: &CleanerConfig, stats: &mut CleanStats) {
+pub(crate) fn clean_paragraph_text(p: &mut XmlElement, cfg: &CleanerConfig, stats: &mut CleanStats) {
     // Collect mutable references to every <w:t> text inside the paragraph runs (skipping instrText)
     let mut text_segments: Vec<(Vec<usize>, String)> = Vec::new();
     collect_wt_segments(p, &mut Vec::new(), &mut text_segments);
@@ -1298,26 +1316,31 @@ fn re_nd30_dates() -> &'static Regex {
     })
 }
 
+#[allow(dead_code)]
 fn re_draft_so_colon_blank() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| Regex::new(r"(?i)\bsố\s*:(\s{2,})/").expect("valid regex"))
 }
 
+#[allow(dead_code)]
 fn re_draft_so_inline_blank() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| Regex::new(r"(?i)\bsố(\s{2,})/\d{4}").expect("valid regex"))
 }
 
+#[allow(dead_code)]
 fn re_draft_ngay_thang_blank() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| Regex::new(r"(?i)\bngày(\s{2,})tháng\b").expect("valid regex"))
 }
 
+#[allow(dead_code)]
 fn re_draft_thang_nam_blank() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| Regex::new(r"(?i)\btháng(\s{2,})năm\b").expect("valid regex"))
 }
 
+#[allow(dead_code)]
 fn re_draft_ngay_slash_blank() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| Regex::new(r"(?i)\bngày(\s{1,})/(\s{1,})/").expect("valid regex"))

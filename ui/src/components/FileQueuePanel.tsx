@@ -58,11 +58,9 @@ export const FileQueuePanel: React.FC<Props> = ({
 }) => {
   return (
     <div
-      className={`rounded-xl border transition-all flex flex-col min-h-[240px] max-h-[360px] ${
-        isDragging
-          ? 'border-blue-500 bg-blue-50/70 dark:bg-blue-950/30 ring-2 ring-blue-400/50'
-          : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'
-      } shadow-sm`}
+      className={`mw-panel transition-colors flex flex-col min-h-[240px] max-h-[360px]${
+        isDragging ? ' border-blue-500 bg-blue-50/70 dark:bg-blue-950/30 ring-2 ring-blue-400/50' : ''
+      }`}
     >
       {/* Header Controls */}
       <div className="px-3 py-2.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
@@ -75,7 +73,7 @@ export const FileQueuePanel: React.FC<Props> = ({
           <button
             type="button"
             onClick={onPickFiles}
-            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold bg-blue-600 text-white hover:bg-blue-700"
+            className="mw-button mw-button-secondary"
           >
             <Plus className="w-3 h-3" /> Chọn File
           </button>
@@ -83,7 +81,7 @@ export const FileQueuePanel: React.FC<Props> = ({
             <button
               type="button"
               onClick={onPickFolder}
-              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold bg-amber-500/15 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25 border border-amber-300/60 dark:border-amber-700/60"
+              className="mw-button mw-button-tertiary"
             >
               <FolderPlus className="w-3 h-3" /> Thư mục
             </button>
@@ -93,7 +91,7 @@ export const FileQueuePanel: React.FC<Props> = ({
               type="button"
               onClick={onClearAll}
               title="Xóa toàn bộ hàng đợi"
-              className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+              className="mw-button mw-button-danger mw-icon-button"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -104,7 +102,7 @@ export const FileQueuePanel: React.FC<Props> = ({
       {/* File List / Dropzone */}
       <div className="flex-1 overflow-y-auto p-2.5 space-y-2">
         {files.length === 0 ? (
-          <div className="h-full min-h-[165px] flex flex-col items-center justify-center text-center px-4 py-6 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-950/40">
+          <div className="h-full min-h-[165px] flex flex-col items-center justify-center mw-empty text-center px-4 py-6">
             <UploadCloud className="w-8 h-8 text-blue-500 mb-2" />
             <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
               Kéo thả File hoặc Thư mục vào đây
@@ -143,23 +141,29 @@ export const FileQueuePanel: React.FC<Props> = ({
                   </div>
 
                   <div className="flex items-center gap-1 shrink-0">
-                    {displayAudit && (
-                      <button
-                        type="button"
-                        onClick={() => onOpenReport(displayAudit)}
-                        title="Xem chi tiết kiểm tra lỗi"
-                        className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                          displayAudit.score >= 85
-                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                            : displayAudit.score >= 60
-                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
-                            : 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
-                        }`}
-                      >
-                        <SearchCheck className="w-3 h-3" />
-                        {displayAudit.score}
-                      </button>
-                    )}
+                    {displayAudit && (() => {
+                      const errs = displayAudit.issues.filter((i) => i.severity === 'error').length;
+                      const warns = displayAudit.issues.filter((i) => i.severity === 'warning').length;
+                      const badgeCls =
+                        errs > 0
+                          ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
+                          : warns > 0
+                          ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                          : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300';
+                      const label =
+                        errs > 0 ? `${errs} lỗi` : warns > 0 ? `${warns} c/báo` : 'Đạt';
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => onOpenReport(displayAudit)}
+                          title="Xem chi tiết kiểm tra lỗi"
+                          className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold ${badgeCls}`}
+                        >
+                          <SearchCheck className="w-3 h-3" />
+                          {label}
+                        </button>
+                      );
+                    })()}
 
                     <button
                       type="button"
@@ -220,14 +224,24 @@ export const FileQueuePanel: React.FC<Props> = ({
                                 <FolderOpen className="w-2.5 h-2.5" /> Thư mục
                               </button>
                               {res.backupPath && (
-                                <button
-                                  type="button"
-                                  onClick={() => onRestoreBackup(res.inputPath, res.backupPath!)}
-                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 hover:underline font-medium"
-                                  title="Khôi phục nguyên trạng từ bản sao lưu .bak"
-                                >
-                                  <RotateCcw className="w-2.5 h-2.5" /> Hoàn tác
-                                </button>
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => onRestoreBackup(res.inputPath, res.backupPath!)}
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 hover:underline font-medium"
+                                    title="Khôi phục phiên bản ngay trước lần chỉnh sửa này"
+                                  >
+                                    <RotateCcw className="w-2.5 h-2.5" /> Hoàn tác
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => onRestoreBackup(res.inputPath, '__initial__')}
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:underline font-medium"
+                                    title="Khôi phục về bản gốc ban đầu (Initial Baseline)"
+                                  >
+                                    Bản gốc
+                                  </button>
+                                </>
                               )}
                             </>
                           )}
@@ -236,7 +250,14 @@ export const FileQueuePanel: React.FC<Props> = ({
                     ) : (
                       <div className="text-rose-600 dark:text-rose-400 flex items-start gap-1">
                         <XCircle className="w-3 h-3 shrink-0 mt-0.5" />
-                        <span>{res.error}</span>
+                        <div className="min-w-0 space-y-0.5">
+                          {res.errorCode && (
+                            <span className="inline-block mr-1 px-1 py-0 rounded bg-rose-100 dark:bg-rose-950 text-[9px] font-mono font-bold">
+                              {res.errorCode}
+                            </span>
+                          )}
+                          <span>{res.error}</span>
+                        </div>
                       </div>
                     )}
                   </div>

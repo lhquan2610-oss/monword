@@ -1,12 +1,22 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
+  ArrowLeft,
+  ArrowRight,
+  Clock,
   Download,
+  FileCheck2,
+  FileText,
+  FolderOpen,
   FolderPlus,
+  History,
   Plus,
   RefreshCw,
+  RotateCcw,
+  SearchCheck,
   Settings2,
   Shield,
   ShieldAlert,
+  SlidersHorizontal,
   Terminal,
   Trash2,
   Unlock,
@@ -14,8 +24,12 @@ import {
 } from 'lucide-react';
 import type {
   AddinItem,
+  AuditReport,
+  FileProcessResult,
+  FileQueueItem,
   LockMode,
   NavTab,
+  OperationLogEntry,
   OrientationMode,
   PageNumPosition,
   PaperSize,
@@ -23,9 +37,15 @@ import type {
   PresetInfo,
   ProcessConfig,
   QuoteStyle,
+  RecentDocEntry,
   SystemStatus,
   SystemTweaksRequest,
 } from '../types';
+import {
+  ADVANCED_NAV_GROUPS,
+  getAdvancedTabMeta,
+  isAdvancedSubTab,
+} from './WorkspaceNavigation';
 
 export interface ConfigPanelsProps {
   activeTab: NavTab;
@@ -50,6 +70,9 @@ export interface ConfigPanelsProps {
   ) => void;
   activityLogs: string[];
   onClearLogs: () => void;
+  operationLogs?: OperationLogEntry[];
+  onRefreshOpLogs?: () => void;
+  onClearOpLogs?: () => void;
   isNativeWin: boolean;
   systemStatus: SystemStatus | null;
   addinApp: 'word' | 'excel';
@@ -62,7 +85,437 @@ export interface ConfigPanelsProps {
   handleManageAddin: (action: 'toggle' | 'delete', path: string) => void;
   handleInstallFonts: () => void;
   onOpenDesktopDownload: () => void;
+  files?: FileQueueItem[];
+  audits?: Record<string, AuditReport>;
+  results?: Record<string, FileProcessResult>;
+  recentDocs?: RecentDocEntry[];
+  onNavigate?: (tab: NavTab) => void;
+  onPickFiles?: () => void;
+  onOpenOutput?: (path: string, revealInFolder?: boolean) => void;
+  onDownloadOutput?: (blobUrl: string, fileName: string) => void;
+  onRestoreBackup?: (originalPath: string, backupPath: string) => void;
+  onClearRecent?: () => void;
+  renderHeaderBuilder?: () => React.ReactNode;
+  renderStandardizer?: () => React.ReactNode;
+  renderTemplateEngine?: () => React.ReactNode;
+  renderLayoutIntelligence?: () => React.ReactNode;
+  renderComplianceAudit?: () => React.ReactNode;
+  renderLivePreview?: () => React.ReactNode;
 }
+
+const STATUS_META: Record<
+  RecentDocEntry['status'],
+  { label: string; className: string }
+> = {
+  standardized: {
+    label: 'Đã chuẩn hóa',
+    className:
+      'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300',
+  },
+  checked: {
+    label: 'Đã kiểm tra',
+    className:
+      'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300',
+  },
+  selected: {
+    label: 'Đã chọn',
+    className:
+      'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  },
+};
+
+function formatRecentTime(iso: string): string {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleString('vi-VN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+  } catch {
+    return '';
+  }
+}
+
+const AdvancedSubNavBar: React.FC<{
+  activeTab: NavTab;
+  onNavigate: (tab: NavTab) => void;
+}> = ({ activeTab, onNavigate }) => {
+  const meta = getAdvancedTabMeta(activeTab);
+  if (!meta) return null;
+
+  return (
+    <div className="mw-panel flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5">
+      <div className="flex flex-wrap items-center gap-2 min-w-0">
+        <button
+          type="button"
+          onClick={() => onNavigate('advancedSettings')}
+          className="mw-button mw-button-secondary text-xs"
+        >
+          <ArrowLeft className="size-3.5" aria-hidden="true" />
+          Quay lại Cài đặt và nâng cao
+        </button>
+        <span className="hidden sm:inline text-xs text-[var(--mw-muted)]">
+          {meta.group.title} / <strong className="text-[var(--mw-ink)]">{meta.item.label}</strong>
+        </span>
+      </div>
+
+      {meta.group.items.length > 1 && (
+        <div className="flex flex-wrap items-center gap-1">
+          {meta.group.items.map((sibling) => (
+            <button
+              key={sibling.id}
+              type="button"
+              onClick={() => onNavigate(sibling.id)}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${
+                sibling.id === activeTab
+                  ? 'bg-[var(--mw-accent)] text-[var(--mw-accent-ink)]'
+                  : 'bg-[var(--mw-tint)] text-[var(--mw-ink)] hover:opacity-85'
+              }`}
+            >
+              {sibling.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+interface HistoryViewItem extends RecentDocEntry {
+  inSession: boolean;
+  sessionResult?: FileProcessResult;
+  sessionAudit?: AuditReport;
+}
+
+const HistoryPanel: React.FC<{
+  files: FileQueueItem[];
+  audits: Record<string, AuditReport>;
+  results: Record<string, FileProcessResult>;
+  recentDocs: RecentDocEntry[];
+  onNavigate?: (tab: NavTab) => void;
+  onPickFiles?: () => void;
+  onOpenOutput?: (path: string, revealInFolder?: boolean) => void;
+  onDownloadOutput?: (blobUrl: string, fileName: string) => void;
+  onRestoreBackup?: (originalPath: string, backupPath: string) => void;
+  onClearRecent?: () => void;
+}> = ({
+  files,
+  audits,
+  results,
+  recentDocs,
+  onNavigate,
+  onPickFiles,
+  onOpenOutput,
+  onDownloadOutput,
+  onRestoreBackup,
+  onClearRecent,
+}) => {
+  const items = useMemo<HistoryViewItem[]>(() => {
+    const map = new Map<string, HistoryViewItem>();
+
+    for (const entry of recentDocs) {
+      map.set(entry.path.toLowerCase(), {
+        ...entry,
+        inSession: false,
+      });
+    }
+
+    for (const file of files) {
+      const key = file.path.toLowerCase();
+      const prev = map.get(key);
+      const res = results[file.path];
+      const audit = res?.auditAfter || audits[file.path];
+      const status: RecentDocEntry['status'] = res?.success
+        ? 'standardized'
+        : audit
+          ? 'checked'
+          : prev?.status || 'selected';
+
+      map.set(key, {
+        path: file.path,
+        name: file.name,
+        ext: file.ext,
+        updatedAt: prev?.updatedAt || new Date().toISOString(),
+        status,
+        outputPath: res?.success ? res.outputPath : prev?.outputPath,
+        backupPath: res?.backupPath ?? prev?.backupPath ?? null,
+        summary: res?.success
+          ? res.statsSummary
+          : audit
+            ? `Điểm thể thức: ${audit.score}/100`
+            : prev?.summary,
+        inSession: true,
+        sessionResult: res,
+        sessionAudit: audit,
+      });
+    }
+
+    return Array.from(map.values()).sort((a, b) =>
+      b.updatedAt.localeCompare(a.updatedAt),
+    );
+  }, [audits, files, recentDocs, results]);
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-5">
+      <header className="mw-panel flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5">
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[var(--mw-tint)] text-[var(--mw-accent)]">
+            <History className="size-5" aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-base font-bold text-[var(--mw-ink)]">
+              Lịch sử &amp; Tài liệu gần đây
+            </h2>
+            <p className="mt-0.5 text-xs text-[var(--mw-muted)]">
+              Xem lại các tài liệu bạn đã mở, kiểm tra hoặc chuẩn hóa để tiếp tục xử lý hoặc khôi phục bản gốc.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {onPickFiles && (
+            <button
+              type="button"
+              onClick={onPickFiles}
+              className="mw-button mw-button-primary"
+            >
+              Chọn tài liệu từ máy
+            </button>
+          )}
+          {items.length > 0 && onClearRecent && (
+            <button
+              type="button"
+              onClick={onClearRecent}
+              className="mw-button mw-button-secondary"
+            >
+              <Trash2 className="size-3.5" aria-hidden="true" /> Xóa lịch sử
+            </button>
+          )}
+        </div>
+      </header>
+
+      {items.length === 0 ? (
+        <div className="mw-empty flex flex-col items-center justify-center gap-3 px-6 py-12 text-center">
+          <FileText className="size-10 text-[var(--mw-muted)]" aria-hidden="true" />
+          <div className="space-y-1">
+            <h3 className="text-sm font-bold text-[var(--mw-ink)]">
+              Chưa có tài liệu nào gần đây
+            </h3>
+            <p className="text-xs text-[var(--mw-muted)]">
+              Hãy chọn một tài liệu Word từ máy tính để bắt đầu chuẩn hóa hoặc kiểm tra thể thức.
+            </p>
+          </div>
+          {onPickFiles && (
+            <button
+              type="button"
+              onClick={onPickFiles}
+              className="mw-button mw-button-primary mt-1"
+            >
+              Chọn tài liệu từ máy
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="mw-panel divide-y divide-[var(--mw-border)]">
+          {items.map((item) => {
+            const badge = STATUS_META[item.status];
+            const isWebPath = item.path.startsWith('web://');
+            const targetOpenPath = item.outputPath || (!isWebPath ? item.path : undefined);
+            const timeLabel = formatRecentTime(item.updatedAt);
+
+            return (
+              <div
+                key={item.path}
+                className="flex flex-wrap items-center justify-between gap-3 p-4"
+              >
+                <div className="flex items-start gap-3 min-w-0 flex-1 basis-64">
+                  <FileText className="size-5 shrink-0 text-[var(--mw-accent)] mt-0.5" aria-hidden="true" />
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="truncate text-sm font-bold text-[var(--mw-ink)]">
+                        {item.name}
+                      </span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${badge.className}`}
+                      >
+                        {badge.label}
+                      </span>
+                    </div>
+                    {item.summary && (
+                      <p className="text-xs text-[var(--mw-muted)]">{item.summary}</p>
+                    )}
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-[var(--mw-muted)]">
+                      {!isWebPath && (
+                        <span title={item.path} className="truncate max-w-md">
+                          {item.path}
+                        </span>
+                      )}
+                      {timeLabel && (
+                        <span className="inline-flex items-center gap-1">
+                          <Clock className="size-3" aria-hidden="true" />
+                          {timeLabel}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {item.inSession && onNavigate && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => onNavigate('standardizer')}
+                        className="mw-button mw-button-primary"
+                      >
+                        <FileCheck2 className="size-3.5" aria-hidden="true" />
+                        Chuẩn hóa
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onNavigate('complianceAudit')}
+                        className="mw-button mw-button-secondary"
+                      >
+                        <SearchCheck className="size-3.5" aria-hidden="true" />
+                        Kiểm tra
+                      </button>
+                    </>
+                  )}
+
+                  {item.sessionResult?.blobUrl && onDownloadOutput && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onDownloadOutput(
+                          item.sessionResult!.blobUrl!,
+                          item.sessionResult!.outputName || item.sessionResult!.outputPath,
+                        )
+                      }
+                      className="mw-button mw-button-secondary"
+                    >
+                      <Download className="size-3.5" aria-hidden="true" />
+                      Tải tệp kết quả
+                    </button>
+                  )}
+
+                  {!isWebPath && targetOpenPath && onOpenOutput && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => onOpenOutput(targetOpenPath, false)}
+                        className="mw-button mw-button-secondary"
+                      >
+                        {item.outputPath ? 'Mở tệp kết quả' : 'Mở tệp'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onOpenOutput(targetOpenPath, true)}
+                        className="mw-button mw-button-secondary"
+                      >
+                        <FolderOpen className="size-3.5" aria-hidden="true" />
+                        Mở thư mục
+                      </button>
+                    </>
+                  )}
+
+                  {!isWebPath && item.backupPath && onRestoreBackup && (
+                    <button
+                      type="button"
+                      onClick={() => onRestoreBackup(item.path, item.backupPath!)}
+                      className="mw-button mw-button-secondary"
+                    >
+                      <RotateCcw className="size-3.5" aria-hidden="true" />
+                      Khôi phục bản gốc
+                    </button>
+                  )}
+
+                  {!item.inSession && isWebPath && onPickFiles && (
+                    <button
+                      type="button"
+                      onClick={onPickFiles}
+                      className="mw-button mw-button-secondary"
+                    >
+                      Chọn lại tệp để xử lý
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const AdvancedSettingsHub: React.FC<{
+  onNavigate?: (tab: NavTab) => void;
+}> = ({ onNavigate }) => {
+  return (
+    <div className="mx-auto max-w-4xl space-y-5">
+      <header className="mw-panel p-4 sm:p-5">
+        <div className="flex items-start gap-3">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[var(--mw-tint)] text-[var(--mw-accent)]">
+            <SlidersHorizontal className="size-5" aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-base font-bold text-[var(--mw-ink)]">
+              Cài đặt và nâng cao
+            </h2>
+            <p className="mt-1 text-xs leading-5 text-[var(--mw-muted)]">
+              Các công cụ cấu hình chi tiết, xử lý hàng loạt và thiết lập hệ thống dành cho người dùng có nhu cầu riêng hoặc quản trị viên.
+            </p>
+          </div>
+        </div>
+      </header>
+
+      <div className="space-y-4">
+        {ADVANCED_NAV_GROUPS.map((group) => (
+          <section key={group.id} className="mw-panel p-4 sm:p-5 space-y-3">
+            <div>
+              <h3 className="text-sm font-bold text-[var(--mw-ink)]">{group.title}</h3>
+              <p className="mt-0.5 text-xs text-[var(--mw-muted)]">{group.subtitle}</p>
+            </div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {group.items.map(({ id, label, description, icon: Icon }) => (
+                <div
+                  key={id}
+                  className="flex flex-col justify-between gap-3 rounded-lg border border-[var(--mw-border)] bg-[var(--mw-canvas)] p-3.5"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-8 shrink-0 items-center justify-center rounded-md bg-[var(--mw-tint)] text-[var(--mw-accent)]">
+                      <Icon className="size-4" aria-hidden="true" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-[var(--mw-ink)]">{label}</div>
+                      <p className="mt-0.5 text-xs leading-4 text-[var(--mw-muted)]">
+                        {description}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => onNavigate?.(id)}
+                      className="mw-button mw-button-secondary text-xs"
+                    >
+                      Mở công cụ
+                      <ArrowRight className="size-3.5" aria-hidden="true" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 export const ConfigPanels: React.FC<ConfigPanelsProps> = ({
   activeTab,
@@ -75,6 +528,9 @@ export const ConfigPanels: React.FC<ConfigPanelsProps> = ({
   updateSecurity,
   activityLogs,
   onClearLogs,
+  operationLogs = [],
+  onRefreshOpLogs,
+  onClearOpLogs,
   isNativeWin,
   systemStatus,
   addinApp,
@@ -87,7 +543,64 @@ export const ConfigPanels: React.FC<ConfigPanelsProps> = ({
   handleManageAddin,
   handleInstallFonts,
   onOpenDesktopDownload,
+  files = [],
+  audits = {},
+  results = {},
+  recentDocs = [],
+  onNavigate,
+  onPickFiles,
+  onOpenOutput,
+  onDownloadOutput,
+  onRestoreBackup,
+  onClearRecent,
+  renderHeaderBuilder,
+  renderStandardizer,
+  renderTemplateEngine,
+  renderLayoutIntelligence,
+  renderComplianceAudit,
+  renderLivePreview,
 }) => {
+  const isSubTab = isAdvancedSubTab(activeTab);
+
+  const renderPanelBody = (): React.ReactNode => {
+    if (activeTab === 'history') {
+      return (
+        <HistoryPanel
+          files={files}
+          audits={audits}
+          results={results}
+          recentDocs={recentDocs}
+          onNavigate={onNavigate}
+          onPickFiles={onPickFiles}
+          onOpenOutput={onOpenOutput}
+          onDownloadOutput={onDownloadOutput}
+          onRestoreBackup={onRestoreBackup}
+          onClearRecent={onClearRecent}
+        />
+      );
+    }
+    if (activeTab === 'advancedSettings') {
+      return <AdvancedSettingsHub onNavigate={onNavigate} />;
+    }
+    if (activeTab === 'headerBuilder' && renderHeaderBuilder) {
+      return <>{renderHeaderBuilder()}</>;
+    }
+    if (activeTab === 'standardizer' && renderStandardizer) {
+      return <>{renderStandardizer()}</>;
+    }
+    if (activeTab === 'templateEngine' && renderTemplateEngine) {
+      return <>{renderTemplateEngine()}</>;
+    }
+    if (activeTab === 'layoutIntelligence' && renderLayoutIntelligence) {
+      return <>{renderLayoutIntelligence()}</>;
+    }
+    if (activeTab === 'complianceAudit' && renderComplianceAudit) {
+      return <>{renderComplianceAudit()}</>;
+    }
+    if (activeTab === 'livePreview' && renderLivePreview) {
+      return <>{renderLivePreview()}</>;
+    }
+
   if (activeTab === 'oneClick') {
     return (
       <div className="space-y-4">
@@ -847,6 +1360,81 @@ export const ConfigPanels: React.FC<ConfigPanelsProps> = ({
               ))
             )}
           </div>
+
+          {isNativeWin && (
+            <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                    Nhật ký vận hành chuẩn hóa (Privacy-Safe · {operationLogs.length})
+                  </span>
+                  <p className="text-[10px] text-slate-500">
+                    Chỉ lưu thời gian, tác vụ, tên tệp, module, trạng thái, ms &amp; mã lỗi — không lưu nội dung tài liệu.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 text-[11px]">
+                  {onRefreshOpLogs && (
+                    <button
+                      type="button"
+                      onClick={onRefreshOpLogs}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-blue-600 hover:text-white font-medium"
+                    >
+                      <RefreshCw className="w-3 h-3" /> Làm mới
+                    </button>
+                  )}
+                  {onClearOpLogs && (
+                    <button
+                      type="button"
+                      onClick={onClearOpLogs}
+                      className="text-slate-500 hover:text-rose-600"
+                    >
+                      Xóa log hệ thống
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="max-h-44 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 text-[11px]">
+                {operationLogs.length === 0 ? (
+                  <div className="p-3 text-slate-500 text-center">Chưa ghi nhận nhật ký hệ thống nào.</div>
+                ) : (
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-slate-50 dark:bg-slate-950 text-[10px] uppercase text-slate-500 sticky top-0">
+                      <tr>
+                        <th className="px-2 py-1.5">Thời gian</th>
+                        <th className="px-2 py-1.5">Module / Tác vụ</th>
+                        <th className="px-2 py-1.5">Tệp</th>
+                        <th className="px-2 py-1.5">Trạng thái</th>
+                        <th className="px-2 py-1.5 text-right">ms</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono text-[10px]">
+                      {operationLogs.slice(0, 60).map((entry, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                          <td className="px-2 py-1 whitespace-nowrap text-slate-500">{entry.timestamp}</td>
+                          <td className="px-2 py-1">{entry.module}.{entry.task}</td>
+                          <td className="px-2 py-1 max-w-[140px] truncate" title={entry.fileName}>{entry.fileName}</td>
+                          <td className="px-2 py-1">
+                            <span
+                              className={`px-1 py-0.5 rounded font-bold ${
+                                entry.status === 'ok'
+                                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                                  : entry.status === 'cancelled'
+                                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                                  : 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
+                              }`}
+                            >
+                              {entry.errorCode || entry.status}
+                            </span>
+                          </td>
+                          <td className="px-2 py-1 text-right text-slate-500">{entry.elapsedMs}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -1096,6 +1684,16 @@ export const ConfigPanels: React.FC<ConfigPanelsProps> = ({
           )}
         </div>
       </div>
+    </div>
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      {isSubTab && onNavigate && (
+        <AdvancedSubNavBar activeTab={activeTab} onNavigate={onNavigate} />
+      )}
+      {renderPanelBody()}
     </div>
   );
 };

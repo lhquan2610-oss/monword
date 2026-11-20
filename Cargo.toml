@@ -1,8 +1,16 @@
 [package]
 name = "chuanhoa-vb-pro"
-version = "1.0.0"
+version = "4.0.0"
 edition = "2021"
-description = "MonWord — Chuẩn Hóa Văn Bản Pro (Hệ sinh thái văn phòng Mon)"
+description = "MonWord 4.0 — Chuẩn Hóa Văn Bản Pro (Hệ sinh thái văn phòng Mon)"
+
+[[bin]]
+name = "chuanhoa-vb-pro"
+path = "src/main.rs"
+
+[[bin]]
+name = "monword-installer"
+path = "src/bin/installer.rs"
 
 [dependencies]
 tao = "0.37"
